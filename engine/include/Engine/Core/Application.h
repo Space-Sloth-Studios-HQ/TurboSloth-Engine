@@ -4,16 +4,10 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include "Engine/Window.h"
 
-namespace Engine::Core
+namespace Engine
 {
-    struct WindowSpecification 
-    {
-        std::string Title = "Rocket Sloth";
-        uint32_t Width = 1280;
-        uint32_t Height = 720;
-    };
-
     struct ApplicationSpecification 
     {
         std::string Name = "Untitled";
@@ -33,6 +27,8 @@ namespace Engine::Core
     private:
         ApplicationSpecification m_Spec{};
         bool m_Running = true;
+
+        std::unique_ptr<IWindow> m_Window;
 
         std::vector<std::unique_ptr<Layer>> m_Layers;
     public:

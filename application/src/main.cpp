@@ -1,7 +1,7 @@
 #include <iostream>
 #include <Engine/Core/Application.h>
 
-class AppLayer : public Engine::Core::Layer 
+class AppLayer : public Engine::Layer 
 {
 public:
     void OnAttach() override 
@@ -17,12 +17,12 @@ public:
 
 int main() 
 {
-    Engine::Core::ApplicationSpecification appSpec;
+    Engine::ApplicationSpecification appSpec;
     appSpec.Name = "KHClone";
     appSpec.WindowSpec.Width = 1920;
     appSpec.WindowSpec.Height = 1080;
 
-    Engine::Core::Application app(appSpec);
+    Engine::Application app(appSpec);
     app.PushLayer<AppLayer>();
     app.Run();
 }
