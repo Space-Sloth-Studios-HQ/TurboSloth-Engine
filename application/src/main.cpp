@@ -19,6 +19,7 @@ int main()
 {
     Engine::ApplicationSpecification appSpec;
     appSpec.Name = "KHClone";
+    appSpec.WindowSpec.Title = "KHClone Window";
     appSpec.WindowSpec.Width = 1920;
     appSpec.WindowSpec.Height = 1080;
 
