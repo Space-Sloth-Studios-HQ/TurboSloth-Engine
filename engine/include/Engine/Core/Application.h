@@ -5,6 +5,7 @@
 #include <utility>
 #include <memory>
 #include "Engine/Window.h"
+#include "Engine/Rendering/BgfxRenderer.h"
 
 namespace Engine
 {
@@ -29,6 +30,7 @@ namespace Engine
         bool m_Running = true;
 
         std::unique_ptr<IWindow> m_Window;
+        BgfxRenderer m_Renderer;
 
         std::vector<std::unique_ptr<Layer>> m_Layers;
     public:

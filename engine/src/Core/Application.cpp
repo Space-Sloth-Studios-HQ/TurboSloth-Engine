@@ -13,6 +13,17 @@ namespace Engine
                   << m_Spec.WindowSpec.Height << ")\n";
 
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
+
+        void *nativeHandle = m_Window->GetNativeHandle();
+        try 
+        {
+            m_Renderer.Init(nativeHandle, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
+        } 
+        catch (const std::exception& e) 
+        {
+            std::cerr << "[Engine] Renderer initialization failed: " << e.what() << "\n";
+            m_Running = false;
+        }
     }
 
     Application::~Application()
@@ -32,6 +43,7 @@ namespace Engine
             last = now;
 
             m_Window->PollEvents();
+            m_Renderer.RenderFrame();
 
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
