@@ -10,7 +10,7 @@ target_include_directories(KHEngine
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# GLFW via FetchContent
+# ----------- GLFW via FetchContent -----------------
 include(FetchContent)
 
 FetchContent_Declare(
@@ -20,11 +20,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-# Link GLFW privately (engine API does not expose GLFW headers)
-target_link_libraries(KHEngine
-  PRIVATE
-    glfw
-)
+target_compile_definitions(KHEngine PRIVATE glfw)
+
+# ----------- Vulkan SDK / Loader -----------------
+# Requires Vulkan SDK installed (LunarG). On macOS this is MoltenVK via the SDK.
+# CMake's FindVulkan provides Vulkan::Vulkan if found.
+find_package(Vulkan REQUIRED)
+
+# Link the Vulkan loader +
+# Use Vulkan::Vulkan to be cross-platform (Win: vulkan-1.lib, Linux: libvulkan.so, macOS: MoltenVK dylib)
+target_link_libraries(KHEngine PRIVATE Vulkan::Vulkan)
+
+# If your GLFW code includes <GLFW/glfw3.h> and you want it to include <vulkan/vulkan.h> for you:
+# You can define this globally for the engine sources:
+target_compile_definitions(KHEngine PRIVATE GLFW_INCLUDE_VULKAN)
+
+message(STATUS "Vulkan include: ${Vulkan_INCLUDE_DIRS}")
+message(STATUS "Vulkan libs: ${Vulkan_LIBRARIES}")
 
 # Windows-friendly defines (avoid <windows.h> min/max macro conflicts if you include it later)
 if (WIN32)
