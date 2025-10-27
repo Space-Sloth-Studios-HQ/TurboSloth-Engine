@@ -39,9 +39,11 @@ find_package(Vulkan REQUIRED)
 
 # Link the Vulkan loader and GLFW
 # Use Vulkan::Vulkan to be cross-platform (Win: vulkan-1.lib, Linux: libvulkan.so, macOS: MoltenVK dylib)
+# Vulkan is PUBLIC because VulkanRenderer.h is included in public headers (Application.h)
 target_link_libraries(KHEngine
-  PRIVATE
+  PUBLIC
     Vulkan::Vulkan
+  PRIVATE
     glfw
 )
 

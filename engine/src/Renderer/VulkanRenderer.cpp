@@ -1,10 +1,16 @@
 #include "Engine/Renderer/VulkanRenderer.h"
 #include "Engine/WindowVulkan.h"
-#include <algorithm>
-#include <cstring>
 #include <ranges>
 #include <stdexcept>
 #include <vector>
+#include <iostream>
+#include <cstring>
+
+#ifdef NDEBUG
+    constexpr bool enableValidationLayers = false;
+#else
+    constexpr bool enableValidationLayers = true;
+#endif
 
 namespace Engine 
 {
@@ -25,6 +31,7 @@ namespace Engine
 
     void VulkanRenderer::CreateInstance(const IWindow& window)
     {
+        std::cout << "[VulkanRenderer] Creating Vulkan instance...\n";
         vk::ApplicationInfo appInfo(
             "Engine",                      // pApplicationName
             VK_MAKE_VERSION(1, 0, 0),     // applicationVersion
@@ -51,7 +58,6 @@ namespace Engine
         }
 
         // Add debug utils extension
-        bool enableValidationLayers = true; // TODO: make configurable
         if (enableValidationLayers)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -64,8 +70,8 @@ namespace Engine
             static_cast<uint32_t>(extensions.size()),    // enabled extensions count
             extensions.data()                             // enabled extension names
         );
-
         // Create the Vulkan instance
-        m_Instance = vk::raii::Instance(m_Context, instanceCreateInfo);
+        m_Instance.emplace(m_Context, instanceCreateInfo);
+        m_Instance.emplace(m_Context, instanceCreateInfo);
     }
 }

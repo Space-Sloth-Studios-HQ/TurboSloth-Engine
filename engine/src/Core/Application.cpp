@@ -13,6 +13,7 @@ namespace Engine
                   << m_Spec.WindowSpec.Height << ")\n";
 
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
+        m_Renderer.Init(*m_Window);
     }
 
     Application::~Application()

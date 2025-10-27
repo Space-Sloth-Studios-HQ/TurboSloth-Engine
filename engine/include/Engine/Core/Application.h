@@ -5,6 +5,7 @@
 #include <utility>
 #include <memory>
 #include "Engine/Window.h"
+#include "Engine/Renderer/VulkanRenderer.h"
 
 namespace Engine
 {
@@ -29,6 +30,7 @@ namespace Engine
         bool m_Running = true;
 
         std::unique_ptr<IWindow> m_Window;
+        VulkanRenderer m_Renderer; // Maybe this can be abstracted later
 
         std::vector<std::unique_ptr<Layer>> m_Layers;
     public:
