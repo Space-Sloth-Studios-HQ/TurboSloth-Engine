@@ -2,6 +2,8 @@
 add_library(KHEngine STATIC
   src/Core/Application.cpp
   src/Platform/GLFW/GLFWWindow.cpp
+  src/Platform/GLFW/WindowVulkan.cpp
+  src/Renderer/VulkanRenderer.cpp
 )
 
 # Public headers are under engine/include
@@ -20,16 +22,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-target_compile_definitions(KHEngine PRIVATE glfw)
+# target_compile_definitions(KHEngine PRIVATE glfw)
 
 # ----------- Vulkan SDK / Loader -----------------
+# Help FindVulkan on Windows if VULKAN_SDK is set
+if (WIN32 AND DEFINED ENV{VULKAN_SDK})
+  # Typical SDK layout: C:\VulkanSDK\1.x.x.x\{Include,Lib}
+  set(Vulkan_INCLUDE_DIR "$ENV{VULKAN_SDK}/Include" CACHE PATH "")
+  # Use the 64-bit lib; if you're targeting Win32, switch to /Lib32/
+  set(Vulkan_LIBRARY     "$ENV{VULKAN_SDK}/Lib/vulkan-1.lib" CACHE FILEPATH "")
+endif()
+
 # Requires Vulkan SDK installed (LunarG). On macOS this is MoltenVK via the SDK.
 # CMake's FindVulkan provides Vulkan::Vulkan if found.
 find_package(Vulkan REQUIRED)
 
-# Link the Vulkan loader +
+# Link the Vulkan loader and GLFW
 # Use Vulkan::Vulkan to be cross-platform (Win: vulkan-1.lib, Linux: libvulkan.so, macOS: MoltenVK dylib)
-target_link_libraries(KHEngine PRIVATE Vulkan::Vulkan)
+target_link_libraries(KHEngine
+  PRIVATE
+    Vulkan::Vulkan
+    glfw
+)
 
 # If your GLFW code includes <GLFW/glfw3.h> and you want it to include <vulkan/vulkan.h> for you:
 # You can define this globally for the engine sources:
