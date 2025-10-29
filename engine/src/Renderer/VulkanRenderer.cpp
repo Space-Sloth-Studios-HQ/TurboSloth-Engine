@@ -57,6 +57,9 @@ namespace Engine
             }
         }
 
+        // Add portability enumeration extension for MoltenVK on macOS
+        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
         // Add debug utils extension
         if (enableValidationLayers)
         {
@@ -64,14 +67,13 @@ namespace Engine
         }
 
         vk::InstanceCreateInfo instanceCreateInfo(
-            {},                                           // flags
+            vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,  // flags - required for MoltenVK
             &appInfo,                                     // pApplicationInfo
             0, nullptr,                                   // enabled layers (count, names)
             static_cast<uint32_t>(extensions.size()),    // enabled extensions count
             extensions.data()                             // enabled extension names
         );
         // Create the Vulkan instance
-        m_Instance.emplace(m_Context, instanceCreateInfo);
         m_Instance.emplace(m_Context, instanceCreateInfo);
     }
 }
