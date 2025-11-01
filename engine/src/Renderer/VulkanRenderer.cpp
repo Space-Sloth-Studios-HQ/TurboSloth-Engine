@@ -21,7 +21,9 @@ namespace Engine
 
     void VulkanRenderer::Shutdown()
     {
-        // Implementation for cleaning up Vulkan resources
+        // RAII wrappers (vk::raii::Instance) handle destruction automatically
+        // Explicitly reset the optional to destroy the instance now
+        m_Instance.reset();
     }
 
     void VulkanRenderer::RenderFrame()

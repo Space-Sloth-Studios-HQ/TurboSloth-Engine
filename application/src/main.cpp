@@ -15,7 +15,7 @@ public:
     }
 };
 
-int main() 
+int main()
 {
     Engine::ApplicationSpecification appSpec;
     appSpec.Name = "KHClone";
@@ -25,4 +25,10 @@ int main()
     Engine::Application app(appSpec);
     app.PushLayer<AppLayer>();
     app.Run();
+
+    // Explicitly shutdown before destruction
+    // This ensures Vulkan instance is destroyed before GLFW terminates
+    app.Shutdown();
+
+    return 0;
 }

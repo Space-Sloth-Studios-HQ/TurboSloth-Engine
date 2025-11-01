@@ -28,6 +28,7 @@ namespace Engine
     private:
         ApplicationSpecification m_Spec{};
         bool m_Running = true;
+        bool m_IsShutdown = false;
 
         std::unique_ptr<IWindow> m_Window;
         VulkanRenderer m_Renderer; // Maybe this can be abstracted later
@@ -48,5 +49,6 @@ namespace Engine
         }
 
         void Run();
+        void Shutdown();
     };
 }
