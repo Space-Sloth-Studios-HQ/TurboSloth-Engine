@@ -1,1 +1,17 @@
+# Build directories
 build/
+
+# Compilation database (symlink to build directory)
+compile_commands.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Language server cache
+.ccls-cache/
+.clangd/
