@@ -65,7 +65,9 @@ namespace Engine
             &deviceQueueCreateInfo,                             // pQueueDeviceCreateInfos
             0, nullptr,                                         // EnabledLayerCount / EnabledLayerNames
             static_cast<uint32_t>(m_DeviceExtensions.size()),   // enabledExtensionCount
-            m_DeviceExtensions.data()                           // ppEnabledExtensionNames
+            m_DeviceExtensions.data(),                          // ppEnabledExtensionNames
+            {},                                                 // pEnabledFeatures
+            features2                                           // pNext
         );
 
         m_Device = vk::raii::Device(m_PhysicalDevice.value(), deviceCreateInfo);
