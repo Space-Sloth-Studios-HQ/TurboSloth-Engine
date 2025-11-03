@@ -5,7 +5,7 @@
 #include <cstdint>
 #include "Engine/Window.h"
 
-namespace Engine 
+namespace Engine
 {
     class VulkanRenderer
     {

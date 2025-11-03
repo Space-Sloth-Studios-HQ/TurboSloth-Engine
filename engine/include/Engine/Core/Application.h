@@ -9,13 +9,13 @@
 
 namespace Engine
 {
-    struct ApplicationSpecification 
+    struct ApplicationSpecification
     {
         std::string Name = "Untitled";
         WindowSpecification WindowSpec{};
     };
 
-    class Layer 
+    class Layer
     {
     public:
         virtual ~Layer() = default;

@@ -13,7 +13,7 @@
     constexpr bool enableValidationLayers = true;
 #endif
 
-namespace Engine 
+namespace Engine
 {
     void VulkanRenderer::Init(const IWindow& window)
     {
@@ -40,8 +40,8 @@ namespace Engine
 
        // query for Vulkan 1.3 features
         vk::StructureChain <
-            vk::PhysicalDeviceFeatures2, 
-            vk::PhysicalDeviceVulkan13Features, 
+            vk::PhysicalDeviceFeatures2,
+            vk::PhysicalDeviceVulkan13Features,
             vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
         > featureChain;
 
@@ -61,7 +61,7 @@ namespace Engine
 
         vk::DeviceCreateInfo deviceCreateInfo(
             {},                                                 // flags
-            1,                                                  // queueCreateInfoCount   
+            1,                                                  // queueCreateInfoCount
             &deviceQueueCreateInfo,                             // pQueueDeviceCreateInfos
             0, nullptr,                                         // EnabledLayerCount / EnabledLayerNames
             static_cast<uint32_t>(m_DeviceExtensions.size()),   // enabledExtensionCount
@@ -75,13 +75,13 @@ namespace Engine
     uint32_t VulkanRenderer::FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice physicalDevice)
     {
         std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
-        
+
         const auto qfpIter = std::ranges::find_if(queueFamilyProperties,
             [](vk::QueueFamilyProperties const & qfp)
             {
                 return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
             });
-        
+
 
         return static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), qfpIter));
     }
@@ -89,15 +89,15 @@ namespace Engine
     void VulkanRenderer::PickPhysicalDevice()
     {
         std::vector<vk::raii::PhysicalDevice> devices = m_Instance->enumeratePhysicalDevices();
-        if (devices.empty()) 
+        if (devices.empty())
         {
             throw std::runtime_error("Failed to find GPUs with Vulkan support!");
         }
-        
-        // TODO: Maybe application can dictate specific requirements needed 
+
+        // TODO: Maybe application can dictate specific requirements needed
         // Most of the time we would just choose the on-board GPU and call it a day
         const auto devIter = std::ranges::find_if(devices,
-            [&](auto const & device) 
+            [&](auto const & device)
             {
                 std::cout << "[VulkanRenderer] Device found: " <<  device.getProperties().deviceName << std::endl;
                 auto queueFamiles = device.getQueueFamilyProperties();
@@ -140,7 +140,7 @@ namespace Engine
             }
         );
 
-        if (devIter == devices.end()) 
+        if (devIter == devices.end())
         {
             throw std::runtime_error("Failed to find suitable GPU");
         }
