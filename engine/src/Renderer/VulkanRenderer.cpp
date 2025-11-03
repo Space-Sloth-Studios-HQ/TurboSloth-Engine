@@ -19,6 +19,7 @@ namespace Engine
     {
         CreateInstance(window);
         PickPhysicalDevice();
+        CreateLogicalDevice();
     }
 
     void VulkanRenderer::Shutdown()
@@ -33,9 +34,61 @@ namespace Engine
         // Implementation for rendering a single frame using Vulkan
     }
 
+    void VulkanRenderer::CreateLogicalDevice()
+    {
+        m_GraphicsQueueFamilyIdx = FindGraphicsQueueFamilyIdx(m_PhysicalDevice.value());
+
+       // query for Vulkan 1.3 features
+        vk::StructureChain <
+            vk::PhysicalDeviceFeatures2, 
+            vk::PhysicalDeviceVulkan13Features, 
+            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+        > featureChain;
+
+        // TODO: Figure out what to do with these features.
+        auto& features2             = featureChain.get<vk::PhysicalDeviceFeatures2>();
+        auto& vulkan13Features      = featureChain.get<vk::PhysicalDeviceVulkan13Features>();
+        auto& dynamicStateFeatures  = featureChain.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+
+        // create a Device
+        float                     queuePriority = 0.0f;
+        vk::DeviceQueueCreateInfo deviceQueueCreateInfo(
+            {},
+            m_GraphicsQueueFamilyIdx,
+            1,
+            &queuePriority
+        );
+
+        vk::DeviceCreateInfo deviceCreateInfo(
+            {},                                                 // flags
+            1,                                                  // queueCreateInfoCount   
+            &deviceQueueCreateInfo,                             // pQueueDeviceCreateInfos
+            0, nullptr,                                         // EnabledLayerCount / EnabledLayerNames
+            static_cast<uint32_t>(m_DeviceExtensions.size()),   // enabledExtensionCount
+            m_DeviceExtensions.data()                           // ppEnabledExtensionNames
+        );
+
+        m_Device = vk::raii::Device(m_PhysicalDevice.value(), deviceCreateInfo);
+        m_GraphicsQueue = vk::raii::Queue(m_Device.value(), m_GraphicsQueueFamilyIdx, 0);
+    }
+
+    uint32_t VulkanRenderer::FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice physicalDevice)
+    {
+        std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+        
+        const auto qfpIter = std::ranges::find_if(queueFamilyProperties,
+            [](vk::QueueFamilyProperties const & qfp)
+            {
+                return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
+            });
+        
+
+        return static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), qfpIter));
+    }
+
     void VulkanRenderer::PickPhysicalDevice()
     {
-        std::vector<vk::raii::PhysicalDevice> devices = m_Instance.enumeratePhysicalDevices();
+        std::vector<vk::raii::PhysicalDevice> devices = m_Instance->enumeratePhysicalDevices();
         if (devices.empty()) 
         {
             throw std::runtime_error("Failed to find GPUs with Vulkan support!");
@@ -49,23 +102,39 @@ namespace Engine
                 std::cout << "[VulkanRenderer] Device found: " <<  device.getProperties().deviceName << std::endl;
                 auto queueFamiles = device.getQueueFamilyProperties();
                 bool isSuitable = device.getProperties().apiVersion >= VK_API_VERSION_1_3;
+                if (isSuitable)
+                {
+                    std::cout << "[VulkanRenderer] Device supports VK API 1.3" << std::endl;
+                }
                 const auto qfpIter = std::ranges::find_if(queueFamiles,
                     [](vk::QueueFamilyProperties const & qfp)
                     {
                         return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
                     });
                 isSuitable = isSuitable && (qfpIter != queueFamiles.end());
+                if (isSuitable)
+                {
+                    std::cout << "[VulkanRenderer] Device supports graphics queue family" << std::endl;
+                }
                 auto extensions = device.enumerateDeviceExtensionProperties();
                 bool found = true;
                 for (auto const & extension : m_DeviceExtensions)
                 {
                     auto extensionIter = std::ranges::find_if(extensions, [extension](auto const & ext) { return strcmp(ext.extensionName, extension) == 0; });
                     found = found && extensionIter != extensions.end();
+                    if (found)
+                    {
+                        std::cout << "[VulkanRenderer] Device supports " << extension << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "[VulkanRenderer] Device DOES NOT support " << extension << std::endl;
+                    }
                 }
                 isSuitable = isSuitable && found;
                 if (isSuitable)
                 {
-                    m_PhysicalDevice = std::make_unique<vk::raii::PhysicalDevice>(device);
+                    m_PhysicalDevice = device;
                 }
                 return isSuitable;
             }

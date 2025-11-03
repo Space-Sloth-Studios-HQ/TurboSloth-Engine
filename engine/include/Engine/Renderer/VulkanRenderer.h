@@ -16,10 +16,17 @@ namespace Engine
     private:
         void CreateInstance(const IWindow& window);
         void PickPhysicalDevice();
+        void CreateLogicalDevice();
+        uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
 
         vk::raii::Context  m_Context;
-        vk::raii::Instance m_Instance = nullptr;
-        std::unique_ptr<vk::raii::PhysicalDevice> m_PhysicalDevice = nullptr;
+        std::optional<vk::raii::Instance> m_Instance;
+        std::optional<vk::raii::PhysicalDevice> m_PhysicalDevice;
+        std::optional<vk::raii::Device> m_Device;
+
+        uint32_t m_GraphicsQueueFamilyIdx = 0;
+        std::optional<vk::raii::Queue> m_GraphicsQueue;
+
         // Intended for use when setting up Vulkan validation layers in instance creation.
         std::vector<char const*> m_ValidationLayers = {
             "VK_LAYER_KHRONOS_validation"
@@ -29,7 +36,8 @@ namespace Engine
             vk::KHRSwapchainExtensionName,
             vk::KHRSpirv14ExtensionName,
             vk::KHRSynchronization2ExtensionName,
-            vk::KHRCreateRenderpass2ExtensionName
+            vk::KHRCreateRenderpass2ExtensionName,
+            "VK_KHR_portability_subset" // macOS/MoltenVK requirement
         };
     };
 }
