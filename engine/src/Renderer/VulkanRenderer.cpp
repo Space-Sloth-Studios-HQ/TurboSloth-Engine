@@ -19,7 +19,7 @@ namespace Engine
     {
         CreateInstance(window);
         PickPhysicalDevice();
-        CreateLogicalDevice();
+        // CreateLogicalDevice();
     }
 
     void VulkanRenderer::Shutdown()
@@ -64,8 +64,8 @@ namespace Engine
             1,                                                  // queueCreateInfoCount
             &deviceQueueCreateInfo,                             // pQueueDeviceCreateInfos
             0, nullptr,                                         // EnabledLayerCount / EnabledLayerNames
-            static_cast<uint32_t>(m_DeviceExtensions.size()),   // enabledExtensionCount
-            m_DeviceExtensions.data(),                          // ppEnabledExtensionNames
+            static_cast<uint32_t>(m_EnabledDeviceExtensions.size()),   // enabledExtensionCount
+            m_EnabledDeviceExtensions.data(),                          // ppEnabledExtensionNames
             {},                                                 // pEnabledFeatures
             features2                                           // pNext
         );
@@ -96,57 +96,84 @@ namespace Engine
             throw std::runtime_error("Failed to find GPUs with Vulkan support!");
         }
 
-        // TODO: Maybe application can dictate specific requirements needed
-        // Most of the time we would just choose the on-board GPU and call it a day
-        const auto devIter = std::ranges::find_if(devices,
-            [&](auto const & device)
+        // Separate function to check device suitability
+        auto isDeviceSuitable = [&](const vk::raii::PhysicalDevice& device) -> bool
+        {
+            std::cout << "[VulkanRenderer] Evaluating device: " << device.getProperties().deviceName << std::endl;
+            
+            // Check API version
+            if (device.getProperties().apiVersion < VK_API_VERSION_1_3)
             {
-                std::cout << "[VulkanRenderer] Device found: " <<  device.getProperties().deviceName << std::endl;
-                auto queueFamiles = device.getQueueFamilyProperties();
-                bool isSuitable = device.getProperties().apiVersion >= VK_API_VERSION_1_3;
-                if (isSuitable)
-                {
-                    std::cout << "[VulkanRenderer] Device supports VK API 1.3" << std::endl;
-                }
-                const auto qfpIter = std::ranges::find_if(queueFamiles,
-                    [](vk::QueueFamilyProperties const & qfp)
-                    {
-                        return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0);
-                    });
-                isSuitable = isSuitable && (qfpIter != queueFamiles.end());
-                if (isSuitable)
-                {
-                    std::cout << "[VulkanRenderer] Device supports graphics queue family" << std::endl;
-                }
-                auto extensions = device.enumerateDeviceExtensionProperties();
-                bool found = true;
-                for (auto const & extension : m_DeviceExtensions)
-                {
-                    auto extensionIter = std::ranges::find_if(extensions, [extension](auto const & ext) { return strcmp(ext.extensionName, extension) == 0; });
-                    found = found && extensionIter != extensions.end();
-                    if (found)
-                    {
-                        std::cout << "[VulkanRenderer] Device supports " << extension << std::endl;
-                    }
-                    else
-                    {
-                        std::cout << "[VulkanRenderer] Device DOES NOT support " << extension << std::endl;
-                    }
-                }
-                isSuitable = isSuitable && found;
-                if (isSuitable)
-                {
-                    m_PhysicalDevice = device;
-                }
-                return isSuitable;
+                std::cout << "[VulkanRenderer]   ❌ Does not support Vulkan 1.3\n";
+                return false;
             }
-        );
-
-        if (devIter == devices.end())
+            std::cout << "[VulkanRenderer]   ✓ Supports Vulkan 1.3\n";
+            
+            // Check for graphics queue
+            auto queueFamilies = device.getQueueFamilyProperties();
+            auto qfpIter = std::ranges::find_if(queueFamilies, [](const auto& qfp) {
+                return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != vk::QueueFlags{};
+            });
+            
+            if (qfpIter == queueFamilies.end())
+            {
+                std::cout << "[VulkanRenderer]   ❌ No graphics queue family\n";
+                return false;
+            }
+            std::cout << "[VulkanRenderer]   ✓ Has graphics queue family\n";
+            
+            // Check extensions
+            auto extensions = device.enumerateDeviceExtensionProperties();
+            for (const char* requiredExt : m_RequestedDeviceExtensions)
+            {
+                auto extIter = std::ranges::find_if(extensions, [requiredExt](const auto& ext) {
+                    return strcmp(ext.extensionName, requiredExt) == 0;
+                });
+                
+                if (extIter == extensions.end())
+                {
+                    std::cout << "[VulkanRenderer]   ❌ Missing extension: " << requiredExt << "\n";
+                    return false;
+                }
+                std::cout << "[VulkanRenderer]   ✓ Supports " << requiredExt << "\n";
+            }
+            
+            return true;
+        };
+        
+        // Find first suitable device
+        auto deviceIter = std::ranges::find_if(devices, isDeviceSuitable);
+        
+        if (deviceIter == devices.end())
         {
             throw std::runtime_error("Failed to find suitable GPU");
         }
+        
+        // Only NOW do we assign and populate enabled extensions
+        m_PhysicalDevice = *deviceIter;
+        m_EnabledDeviceExtensions = m_RequestedDeviceExtensions;  // All were validated
 
+        // Check and add optional extensions if available
+        auto availableExtensions = m_PhysicalDevice->enumerateDeviceExtensionProperties();
+        for (const char* optionalExt : m_OptionalDeviceExtensions)
+        {
+            auto extIter = std::ranges::find_if(availableExtensions, [optionalExt](const auto& ext) {
+                return strcmp(ext.extensionName, optionalExt) == 0;
+            });
+            
+            if (extIter != availableExtensions.end())
+            {
+                std::cout << "[VulkanRenderer]   ✓ Enabling optional extension: " << optionalExt << "\n";
+                m_EnabledDeviceExtensions.push_back(optionalExt);
+            }
+            else
+            {
+                std::cout << "[VulkanRenderer]   ℹ️  Optional extension not available: " << optionalExt << "\n";
+            }
+        }
+        
+        std::cout << "[VulkanRenderer] ✅ Selected device: " 
+                << m_PhysicalDevice->getProperties().deviceName << std::endl;
     }
 
 

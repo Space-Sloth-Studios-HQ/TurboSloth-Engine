@@ -32,12 +32,17 @@ namespace Engine
             "VK_LAYER_KHRONOS_validation"
         };
 
-        std::vector<const char*> m_DeviceExtensions = {
+        std::vector<const char*> m_RequestedDeviceExtensions = {
             vk::KHRSwapchainExtensionName,
             vk::KHRSpirv14ExtensionName,
             vk::KHRSynchronization2ExtensionName,
-            vk::KHRCreateRenderpass2ExtensionName,
-            "VK_KHR_portability_subset" // macOS/MoltenVK requirement
+            vk::KHRCreateRenderpass2ExtensionName
         };
+
+        std::vector<const char*> m_OptionalDeviceExtensions = {
+            "VK_KHR_portability_subset", // For MoltenVK on macOS
+        };
+
+        std::vector<const char*> m_EnabledDeviceExtensions;
     };
 }
