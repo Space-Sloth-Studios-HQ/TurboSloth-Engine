@@ -17,6 +17,7 @@ namespace Engine
         void CreateInstance(const IWindow& window);
         void PickPhysicalDevice();
         void CreateSurface(const IWindow& window);
+        void CreateSwapChain(const IWindow& window);
         void RecreateSwapchain(uint32_t width, uint32_t height);
         void CreateLogicalDevice();
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
@@ -24,9 +25,15 @@ namespace Engine
         vk::raii::Context  m_Context;
         std::optional<vk::raii::Instance> m_Instance;
         std::optional<vk::raii::SurfaceKHR> m_Surface;
-        std::optional<vk::raii::SwapchainKHR> m_Swapchain;
         std::optional<vk::raii::PhysicalDevice> m_PhysicalDevice;
         std::optional<vk::raii::Device> m_Device;
+
+        // Swapchain details
+        std::optional<vk::raii::SwapchainKHR> m_Swapchain;
+        vk::SurfaceFormatKHR m_SwapchainImageFormat;
+        vk::PresentModeKHR m_SwapchainPresentMode;
+        vk::Extent2D m_SwapchainExtent;
+        std::vector<vk::Image> m_SwapchainImages;
 
         uint32_t m_GraphicsQueueFamilyIdx = 0;
         uint32_t m_PresentQueueFamilyIdx = 0;

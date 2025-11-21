@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstring>
 #include <set>
+#include <algorithm>
 
 #ifdef NDEBUG
     constexpr bool enableValidationLayers = false;
@@ -64,6 +65,51 @@ namespace
 
         return indices;
     }
+
+    vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
+    {
+        for (const auto& availableFormat : availableFormats) 
+        {
+            if (availableFormat.format == vk::Format::eR8G8B8A8Srgb && 
+                availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) 
+            {
+                return availableFormat;
+            }
+        }
+
+        return availableFormats[0];
+    }
+
+    vk::PresentModeKHR ChooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
+    {
+        for (const auto& availablePresentMode : availablePresentModes) 
+        {
+            // Prefer Mailbox if available and energy is not a concern
+            // Otherwise fall back to FIFO which is guaranteed to be available
+            if (availablePresentMode == vk::PresentModeKHR::eMailbox) 
+            {
+                return availablePresentMode;
+            }
+        }
+
+        return vk::PresentModeKHR::eFifo;
+    }
+
+    vk::Extent2D ChooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, uint32_t width, uint32_t height)
+    {
+        if (capabilities.currentExtent.width != UINT32_MAX) 
+        {
+            return capabilities.currentExtent;
+        } 
+        else 
+        {
+            vk::Extent2D actualExtent = {
+                std::clamp(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+                std::clamp(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+            };
+            return actualExtent;
+        }
+    }
 }
 
 namespace Engine
@@ -74,6 +120,7 @@ namespace Engine
         CreateSurface(window);
         PickPhysicalDevice();
         CreateLogicalDevice();
+        CreateSwapChain(window);
     }
 
     void VulkanRenderer::Shutdown()
@@ -86,6 +133,57 @@ namespace Engine
     void VulkanRenderer::RenderFrame()
     {
         // Implementation for rendering a single frame using Vulkan
+    }
+
+    void VulkanRenderer::CreateSwapChain(const IWindow& window)
+    {
+        auto surfaceCapabilities = m_PhysicalDevice->getSurfaceCapabilitiesKHR(*m_Surface);
+        m_SwapchainImageFormat = ChooseSwapSurfaceFormat(
+            m_PhysicalDevice->getSurfaceFormatsKHR(*m_Surface)
+        );
+        m_SwapchainPresentMode = ChooseSwapPresentMode(
+            m_PhysicalDevice->getSurfacePresentModesKHR(*m_Surface)
+        );
+        m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, window.GetWidth(), window.GetHeight());
+
+        uint32_t minImageCount = (surfaceCapabilities.maxImageCount > 0) 
+            ? std::min(surfaceCapabilities.maxImageCount, std::max(surfaceCapabilities.minImageCount + 1, 2u)) 
+            : std::max(surfaceCapabilities.minImageCount + 1, 2u);
+
+        vk::SwapchainCreateInfoKHR swapChainCreateInfo(
+            {},                                     // flags
+            *m_Surface,                            // surface
+            minImageCount,                        // minImageCount
+            m_SwapchainImageFormat.format,        // imageFormat
+            m_SwapchainImageFormat.colorSpace,    // imageColorSpace
+            m_SwapchainExtent,                    // imageExtent
+            1,                                    // imageArrayLayers -- always 1 unless you're developing stereoscopic 3D app
+            vk::ImageUsageFlagBits::eColorAttachment, // imageUsage
+            vk::SharingMode::eExclusive,          // imageSharingMode
+            0, nullptr,                           // queueFamilyIndexCount, pQueueFamilyIndices
+            surfaceCapabilities.currentTransform, // preTransform
+            vk::CompositeAlphaFlagBitsKHR::eOpaque,    // compositeAlpha
+            m_SwapchainPresentMode,               // presentMode
+            VK_TRUE,                              // clipped
+            nullptr                               // oldSwapchain
+        );
+
+        if (m_GraphicsQueueFamilyIdx != m_PresentQueueFamilyIdx)
+        {
+            uint32_t queueFamilyIndices[] = { m_GraphicsQueueFamilyIdx, m_PresentQueueFamilyIdx };
+            swapChainCreateInfo.imageSharingMode = vk::SharingMode::eConcurrent;
+            swapChainCreateInfo.queueFamilyIndexCount = 2;
+            swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+        else
+        {
+            swapChainCreateInfo.imageSharingMode = vk::SharingMode::eExclusive;
+            swapChainCreateInfo.queueFamilyIndexCount = 0; // Optional
+            swapChainCreateInfo.pQueueFamilyIndices = nullptr; // Optional
+        }
+
+        m_Swapchain = vk::raii::SwapchainKHR(m_Device.value(), swapChainCreateInfo);
+        m_SwapchainImages = m_Swapchain->getImages();
     }
 
     void VulkanRenderer::CreateSurface(const IWindow& window)
