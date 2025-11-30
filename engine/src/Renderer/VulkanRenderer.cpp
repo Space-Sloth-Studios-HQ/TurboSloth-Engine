@@ -121,6 +121,7 @@ namespace Engine
         PickPhysicalDevice();
         CreateLogicalDevice();
         CreateSwapChain(window);
+        CreateImageView();
     }
 
     void VulkanRenderer::Shutdown()
@@ -133,6 +134,45 @@ namespace Engine
     void VulkanRenderer::RenderFrame()
     {
         // Implementation for rendering a single frame using Vulkan
+    }
+
+    void VulkanRenderer::CreateImageView()
+    {
+        m_SwapchainImageViews.clear();
+        
+        // Our images will be used as color targets without any mipmapping levels or multiple layers.
+        vk::ImageSubresourceRange subresourceRange(
+            vk::ImageAspectFlagBits::eColor,  // aspectMask
+            0,                                 // baseMipLevel
+            1,                                 // levelCount
+            0,                                 // baseArrayLayer
+            1                                  // layerCount
+        );
+
+        /************************************************************************
+        Default components mapping:
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        ************************************************************************/
+        vk::ImageViewCreateInfo imageViewCreateInfo(
+            {},                                // flags
+            {},                                // image (will be set per-image)
+            vk::ImageViewType::e2D,           // viewType
+            m_SwapchainImageFormat.format,    // format
+            {},                                // components (default mapping)
+            subresourceRange                   // subresourceRange
+        );
+
+        for (const auto& swapchainImage : m_SwapchainImages)
+        {
+            imageViewCreateInfo.image = swapchainImage;
+            vk::raii::ImageView imageView(m_Device.value(), imageViewCreateInfo);
+            m_SwapchainImageViews.push_back(std::move(imageView));
+            // Store or use the imageView as needed
+            // For example, you might want to keep them in a member variable
+        }
     }
 
     void VulkanRenderer::CreateSwapChain(const IWindow& window)
