@@ -1,5 +1,6 @@
 #include "Engine/Renderer/VulkanRenderer.h"
 #include "Engine/WindowVulkan.h"
+#include "Engine/Logging/Logger.h"
 #include <GLFW/glfw3.h>
 #include <ranges>
 #include <stdexcept>
@@ -372,34 +373,34 @@ namespace Engine
         // Separate function to check device suitability
         auto isDeviceSuitable = [&](const vk::raii::PhysicalDevice& device) -> bool
         {
-            std::cout << "[VulkanRenderer] Evaluating device: " << device.getProperties().deviceName << std::endl;
-            
+            LOG_INFO("VulkanRenderer", "Evaluating device: {}", device.getProperties().deviceName.data());
+
             // Check API version
             if (device.getProperties().apiVersion < VK_API_VERSION_1_3)
             {
-                std::cout << "[VulkanRenderer]   ❌ Does not support Vulkan 1.3\n";
+                LOG_WARN("VulkanRenderer", "  ❌ Does not support Vulkan 1.3");
                 return false;
             }
-            std::cout << "[VulkanRenderer]   ✓ Supports Vulkan 1.3\n";
+            LOG_INFO("VulkanRenderer", "  ✓ Supports Vulkan 1.3");
             
             // Check for graphics and presentation queue
             auto indices = FindQueueFamilies(device, m_Surface.value());
             if (!indices.isComplete())
             {
-                std::cout << "[VulkanRenderer]   ❌ Missing required queue families\n";
+                LOG_WARN("VulkanRenderer", "  ❌ Missing required queue families");
                 return false;
             }
 
-            std::cout << "[VulkanRenderer]   ✓ Graphics queue family found " << indices.graphicsFamily.value() << "\n";
-            std::cout << "[VulkanRenderer]   ✓ Present queue family found " << indices.presentFamily.value() << "\n";
+            LOG_INFO("VulkanRenderer", "  ✓ Graphics queue family found {}", indices.graphicsFamily.value());
+            LOG_INFO("VulkanRenderer", "  ✓ Present queue family found {}", indices.presentFamily.value());
 
             if (indices.graphicsFamily.value() != indices.presentFamily.value())
             {
-                std::cout << "[VulkanRenderer]   ℹ️  Graphics and Present queues are different\n";
+                LOG_INFO("VulkanRenderer", "  ℹ️  Graphics and Present queues are different");
             }
             else
             {
-                std::cout << "[VulkanRenderer]   ℹ️  Graphics and Present queues are the same\n";
+                LOG_INFO("VulkanRenderer", "  ℹ️  Graphics and Present queues are the same");
             }
 
             
@@ -410,13 +411,13 @@ namespace Engine
                 auto extIter = std::ranges::find_if(extensions, [requiredExt](const auto& ext) {
                     return strcmp(ext.extensionName, requiredExt) == 0;
                 });
-                
+
                 if (extIter == extensions.end())
                 {
-                    std::cout << "[VulkanRenderer]   ❌ Missing extension: " << requiredExt << "\n";
+                    LOG_WARN("VulkanRenderer", "  ❌ Missing extension: {}", requiredExt);
                     return false;
                 }
-                std::cout << "[VulkanRenderer]   ✓ Supports " << requiredExt << "\n";
+                LOG_INFO("VulkanRenderer", "  ✓ Supports {}", requiredExt);
             }
             
             return true;
@@ -441,26 +442,25 @@ namespace Engine
             auto extIter = std::ranges::find_if(availableExtensions, [optionalExt](const auto& ext) {
                 return strcmp(ext.extensionName, optionalExt) == 0;
             });
-            
+
             if (extIter != availableExtensions.end())
             {
-                std::cout << "[VulkanRenderer]   ✓ Enabling optional extension: " << optionalExt << "\n";
+                LOG_INFO("VulkanRenderer", "  ✓ Enabling optional extension: {}", optionalExt);
                 m_EnabledDeviceExtensions.push_back(optionalExt);
             }
             else
             {
-                std::cout << "[VulkanRenderer]   ℹ️  Optional extension not available: " << optionalExt << "\n";
+                LOG_INFO("VulkanRenderer", "  ℹ️  Optional extension not available: {}", optionalExt);
             }
         }
-        
-        std::cout << "[VulkanRenderer] ✅ Selected device: " 
-                << m_PhysicalDevice->getProperties().deviceName << std::endl;
+
+        LOG_INFO("VulkanRenderer", "✅ Selected device: {}", m_PhysicalDevice->getProperties().deviceName.data());
     }
 
 
     void VulkanRenderer::CreateInstance(const IWindow& window)
     {
-        std::cout << "[VulkanRenderer] Creating Vulkan instance...\n";
+        LOG_INFO("VulkanRenderer", "Creating Vulkan instance...");
         vk::ApplicationInfo appInfo(
             "Engine",                      // pApplicationName
             VK_MAKE_VERSION(1, 0, 0),     // applicationVersion

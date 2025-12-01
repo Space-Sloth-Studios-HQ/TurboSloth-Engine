@@ -1,6 +1,7 @@
 # Build the engine as a static lib
 add_library(KHEngine STATIC
   src/Core/Application.cpp
+  src/Logging/Logger.cpp
   src/Platform/GLFW/GLFWWindow.cpp
   src/Platform/GLFW/WindowVulkan.cpp
   src/Renderer/VulkanRenderer.cpp

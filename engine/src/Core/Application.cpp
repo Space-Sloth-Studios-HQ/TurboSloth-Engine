@@ -2,15 +2,14 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <Engine/Logging/Logger.h>
 
 namespace Engine
 {
     Application::Application(const ApplicationSpecification& spec)
         : m_Spec(spec)
     {
-        std::cout << "[Engine] Starting '" << m_Spec.Name
-                  << "' (" << m_Spec.WindowSpec.Width << "x"
-                  << m_Spec.WindowSpec.Height << ")\n";
+        LOG_INFO("Engine", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
 
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
@@ -21,7 +20,8 @@ namespace Engine
         // Ensure shutdown is called even if the user forgot
         if (!m_IsShutdown)
         {
-            std::cout << "[Engine] Warning: Shutdown() was not called explicitly. Calling now...\n";
+            LOG_WARN("Engine", "Shutdown() was not called explicitly. Calling now...");
+            
             Shutdown();
         }
     }
@@ -51,11 +51,11 @@ namespace Engine
     {
         if (m_IsShutdown)
         {
-            std::cout << "[Engine] Warning: Shutdown() called multiple times. Ignoring...\n";
+            LOG_WARN("Engine", "Shutdown() called multiple times. Ignoring...");
             return;
         }
 
-        std::cout << "[Engine] Shutting down...\n";
+        LOG_INFO("Engine", "Shutting down...");
 
         // Shutdown renderer first (destroys Vulkan instance before GLFW terminates)
         m_Renderer.Shutdown();
@@ -67,6 +67,6 @@ namespace Engine
         }
 
         m_IsShutdown = true;
-        std::cout << "[Engine] Shutdown complete.\n";
+        LOG_INFO("Engine", "Shutdown complete.");
     }
 }

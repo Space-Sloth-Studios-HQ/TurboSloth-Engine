@@ -1,12 +1,13 @@
 #include <iostream>
 #include <Engine/Core/Application.h>
+#include <Engine/Logging/Logger.h>
 
 class AppLayer : public Engine::Layer
 {
 public:
     void OnAttach() override
     {
-        std::cout << "[AppLayer] Attached to application.\n";
+        LOG_INFO("AppLayer", "Application layer attached.");
     }
 
     void OnUpdate(float dt) override
