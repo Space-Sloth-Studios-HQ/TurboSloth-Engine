@@ -68,3 +68,91 @@ endif()
 
 # (Add dependencies here later, e.g., glfw/volk)
 # target_link_libraries(KHEngine PUBLIC glfw volk)
+
+# ----------- Shader Compilation with Slang -----------------
+# Find slangc compiler (from Vulkan SDK or system PATH)
+find_program(SLANGC_EXECUTABLE
+  NAMES slangc slangc.exe
+  PATHS
+    "$ENV{VULKAN_SDK}/Bin"
+    "$ENV{SLANG_DIR}/bin"
+  DOC "Path to slangc compiler"
+)
+
+if(NOT SLANGC_EXECUTABLE)
+  message(FATAL_ERROR "slangc not found. Please install Slang or set SLANG_DIR environment variable.")
+endif()
+
+message(STATUS "Found slangc: ${SLANGC_EXECUTABLE}")
+
+# Shader source and output directories
+set(SHADER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_OUTPUT_DIR ${CMAKE_BINARY_DIR}/shaders)
+
+# Ensure output directory exists
+file(MAKE_DIRECTORY ${SHADER_OUTPUT_DIR})
+
+# Define shader compilation function
+function(compile_slang_shader SHADER_SOURCE)
+  get_filename_component(SHADER_NAME ${SHADER_SOURCE} NAME_WE)
+
+  # Output files for vertex and fragment stages
+  set(VERT_OUTPUT ${SHADER_OUTPUT_DIR}/${SHADER_NAME}.vert.spv)
+  set(FRAG_OUTPUT ${SHADER_OUTPUT_DIR}/${SHADER_NAME}.frag.spv)
+
+  # Compile vertex shader
+  add_custom_command(
+    OUTPUT ${VERT_OUTPUT}
+    COMMAND ${SLANGC_EXECUTABLE}
+      -target spirv
+      -profile spirv_1_5
+      -emit-spirv-directly
+      -stage vertex
+      -entry vertMain
+      -fvk-use-entrypoint-name
+      -o ${VERT_OUTPUT}
+      ${SHADER_SOURCE}
+    DEPENDS ${SHADER_SOURCE}
+    COMMENT "Compiling vertex shader: ${SHADER_NAME}.vert.spv"
+    VERBATIM
+  )
+
+  # Compile fragment shader
+  add_custom_command(
+    OUTPUT ${FRAG_OUTPUT}
+    COMMAND ${SLANGC_EXECUTABLE}
+      -target spirv
+      -profile spirv_1_5
+      -emit-spirv-directly
+      -stage fragment
+      -entry fragMain
+      -fvk-use-entrypoint-name
+      -o ${FRAG_OUTPUT}
+      ${SHADER_SOURCE}
+    DEPENDS ${SHADER_SOURCE}
+    COMMENT "Compiling fragment shader: ${SHADER_NAME}.frag.spv"
+    VERBATIM
+  )
+
+  # Add to parent scope
+  set(COMPILED_SHADERS ${COMPILED_SHADERS} ${VERT_OUTPUT} ${FRAG_OUTPUT} PARENT_SCOPE)
+endfunction()
+
+# Compile triangle.slang
+set(COMPILED_SHADERS "")
+compile_slang_shader(${SHADER_SOURCE_DIR}/common/triangle.slang)
+
+# Create custom target for all shaders
+add_custom_target(EngineShaders ALL
+  DEPENDS ${COMPILED_SHADERS}
+  COMMENT "Building engine shaders"
+)
+
+# Make the engine depend on shaders being built
+add_dependencies(KHEngine EngineShaders)
+
+# Install shaders to output directory (optional, for deployment)
+install(DIRECTORY ${SHADER_OUTPUT_DIR}/
+  DESTINATION shaders
+  FILES_MATCHING PATTERN "*.spv"
+)

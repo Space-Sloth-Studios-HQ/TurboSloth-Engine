@@ -21,6 +21,8 @@ namespace Engine
         void RecreateSwapchain(uint32_t width, uint32_t height);
         void CreateLogicalDevice();
         void CreateImageView();
+        void CreateGraphicsPipeline();
+        vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
 
         vk::raii::Context  m_Context;

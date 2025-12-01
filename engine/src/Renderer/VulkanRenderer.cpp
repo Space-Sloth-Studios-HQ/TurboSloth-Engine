@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <set>
 #include <algorithm>
@@ -110,6 +111,21 @@ namespace
             return actualExtent;
         }
     }
+
+    static std::vector<char> ReadFile(const std::string& filename)
+    {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+        if (!file.is_open()) 
+        {
+            throw std::runtime_error("Failed to open file: " + filename);
+        }
+
+        std::vector<char> buffer(file.tellg());
+        file.seekg(0);
+        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        return buffer;
+    }
 }
 
 namespace Engine
@@ -134,6 +150,48 @@ namespace Engine
     void VulkanRenderer::RenderFrame()
     {
         // Implementation for rendering a single frame using Vulkan
+    }
+
+    void VulkanRenderer::CreateGraphicsPipeline()
+    {
+        auto vertShaderCode = ReadFile("shaders/triangle.vert.spv");
+        auto fragShaderCode = ReadFile("shaders/triangle.frag.spv");
+        vk::raii::ShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
+        vk::raii::ShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        // Create shader stage create infos
+        vk::PipelineShaderStageCreateInfo vertShaderStageInfo(
+            {},                                  // flags
+            vk::ShaderStageFlagBits::eVertex,   // stage
+            *vertShaderModule,                   // module
+            "vertMain"                           // pName (entry point)
+        );
+
+        vk::PipelineShaderStageCreateInfo fragShaderStageInfo(
+            {},                                  // flags
+            vk::ShaderStageFlagBits::eFragment, // stage
+            *fragShaderModule,                   // module
+            "fragMain"                           // pName (entry point)
+        );
+
+        std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
+            vertShaderStageInfo,
+            fragShaderStageInfo
+        };
+
+        // TODO: Continue with pipeline creation using shaderStages
+    }
+
+    vk::raii::ShaderModule VulkanRenderer::CreateShaderModule(const std::vector<char>& code)
+    {
+        vk::ShaderModuleCreateInfo createInfo(
+            {},                                 // flags
+            code.size(),                       // codeSize
+            reinterpret_cast<const uint32_t*>(code.data()) // pCode
+        );
+
+        vk::raii::ShaderModule shaderModule(m_Device.value(), createInfo);
+        return shaderModule;
     }
 
     void VulkanRenderer::CreateImageView()
