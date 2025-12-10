@@ -12,6 +12,16 @@ A modern game engine built with Vulkan and C++20, featuring cross-platform suppo
 
 ## Prerequisites
 
+### Windows
+
+- **Visual Studio 2022** (or Build Tools for Visual Studio 2022) with C++ workload
+- **CMake** (3.21+): Install via [cmake.org](https://cmake.org/download/) or `winget install Kitware.CMake`
+- **Ninja**: `winget install Ninja-build.Ninja` (or include via Visual Studio)
+- **LLVM/Clang** (optional, for clang presets): `winget install LLVM.LLVM`
+- **Vulkan SDK**: Download from [LunarG](https://vulkan.lunarg.com/sdk/home)
+  - Run the installer and ensure "Shader Toolchain Debug Symbols" is selected
+  - The installer automatically sets `VULKAN_SDK` environment variable
+
 ### macOS
 
 - **Xcode Command Line Tools**: `xcode-select --install`
@@ -22,6 +32,21 @@ A modern game engine built with Vulkan and C++20, featuring cross-platform suppo
   - Current tested version: 1.4.328.1
 
 ## Environment Setup
+
+### Windows
+
+The Vulkan SDK installer automatically configures the required environment variables. Verify by opening a new terminal and running:
+
+```powershell
+echo $env:VULKAN_SDK
+```
+
+If using Clang, ensure it's in your PATH:
+```powershell
+clang --version
+```
+
+### macOS
 
 Add the following to your `~/.zshrc` (or `~/.bashrc` for Bash):
 
@@ -40,6 +65,24 @@ source ~/.zshrc  # or source ~/.bashrc
 
 ## Building
 
+### Windows
+
+Use the Clang preset (requires LLVM/Clang installed):
+
+```powershell
+# Configure (Debug)
+cmake --preset clang-debug
+
+# Build
+cmake --build build/clang-debug
+
+# Or for Release builds
+cmake --preset clang-release
+cmake --build build/clang-release
+```
+
+The executable will be created at `build/clang-debug/application/khclone.exe`.
+
 ### macOS
 
 The project includes macOS-specific build presets that use the system AppleClang compiler:
@@ -56,11 +99,11 @@ cmake --preset macos-release
 cmake --build build/macos-release
 ```
 
-The executable will be created at `build/macos-debug/application/khclone` (or `build/macos-release/application/khclone`).
+The executable will be created at `build/macos-debug/application/khclone`.
 
 ### Alternative: Generic Clang Presets
 
-If you prefer to use a different clang installation:
+On macOS, if you prefer to use a different clang installation:
 
 ```bash
 cmake --preset clang-debug
@@ -71,6 +114,12 @@ cmake --build build/clang-debug
 
 After building, run the application:
 
+**Windows:**
+```powershell
+.\build\clang-debug\application\khclone.exe
+```
+
+**macOS:**
 ```bash
 ./build/macos-debug/application/khclone
 ```
@@ -108,11 +157,11 @@ TurboSloth-Engine/
 
 ## Technology Stack
 
-- **Graphics API**: Vulkan 1.4 (via MoltenVK on macOS)
+- **Graphics API**: Vulkan 1.3+ (via MoltenVK on macOS)
 - **Windowing**: GLFW 3.4
 - **Language**: C++20
 - **Build System**: CMake 3.21+ with Ninja generator
-- **Platform**: macOS (Apple Silicon and Intel)
+- **Platforms**: Windows 10/11, macOS (Apple Silicon and Intel)
 
 ## Development
 
@@ -165,14 +214,26 @@ These are handled automatically by the engine's Vulkan initialization code.
 
 ## Troubleshooting
 
-### "ErrorIncompatibleDriver" on macOS
+### Windows: "clang not found" or CMake can't find compiler
+
+1. Ensure LLVM is installed: `winget install LLVM.LLVM`
+2. Add LLVM to PATH (usually `C:\Program Files\LLVM\bin`)
+3. Open a new terminal after installation
+
+### Windows: Vulkan validation layer errors
+
+1. Ensure Vulkan SDK is installed with validation layers
+2. Check `VULKAN_SDK` environment variable is set
+3. Try running from Developer Command Prompt for VS 2022
+
+### macOS: "ErrorIncompatibleDriver"
 
 If you see this error, ensure:
 1. Vulkan SDK is properly installed
 2. Environment variables are set correctly (see Environment Setup)
 3. You've reloaded your shell configuration or opened a new terminal
 
-### Build Errors with Homebrew Clang
+### macOS: Build Errors with Homebrew Clang
 
 Use the `macos-debug` or `macos-release` presets instead of `clang-debug`/`clang-release` to use the system AppleClang compiler.
 

@@ -39,6 +39,10 @@ namespace Engine
         std::vector<vk::Image> m_SwapchainImages;
         std::vector<vk::raii::ImageView> m_SwapchainImageViews;
 
+        // Graphics pipeline
+        std::optional<vk::raii::PipelineLayout> m_PipelineLayout;
+        std::optional<vk::raii::Pipeline> m_GraphicsPipeline;
+
         uint32_t m_GraphicsQueueFamilyIdx = 0;
         uint32_t m_PresentQueueFamilyIdx = 0;
         std::optional<vk::raii::Queue> m_GraphicsQueue;
@@ -51,9 +55,7 @@ namespace Engine
 
         std::vector<const char*> m_RequestedDeviceExtensions = {
             vk::KHRSwapchainExtensionName,
-            vk::KHRSpirv14ExtensionName,
-            vk::KHRSynchronization2ExtensionName,
-            vk::KHRCreateRenderpass2ExtensionName
+            vk::KHRDynamicRenderingExtensionName
         };
 
         std::vector<const char*> m_OptionalDeviceExtensions = {

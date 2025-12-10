@@ -115,16 +115,21 @@ namespace
 
     static std::vector<char> ReadFile(const std::string& filename)
     {
+        LOG_DEBUG("VulkanRenderer", "Reading shader file: {}", filename);
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
         if (!file.is_open()) 
         {
+            LOG_ERROR("VulkanRenderer", "Failed to open file: {}", filename);
             throw std::runtime_error("Failed to open file: " + filename);
         }
 
+        LOG_DEBUG("VulkanRenderer", "File opened successfully");
         std::vector<char> buffer(file.tellg());
+        LOG_DEBUG("VulkanRenderer", "File size: {} bytes", buffer.size());
         file.seekg(0);
         file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        LOG_DEBUG("VulkanRenderer", "File read into buffer");
         return buffer;
     }
 }
@@ -134,11 +139,18 @@ namespace Engine
     void VulkanRenderer::Init(const IWindow& window)
     {
         CreateInstance(window);
+        LOG_DEBUG("VulkanRenderer", "Creating window surface...");
         CreateSurface(window);
+        LOG_DEBUG("VulkanRenderer", "Picking physical device...");
         PickPhysicalDevice();
+        LOG_DEBUG("VulkanRenderer", "Creating logical device...");
         CreateLogicalDevice();
+        LOG_DEBUG("VulkanRenderer", "Creating swap chain...");
         CreateSwapChain(window);
+        LOG_DEBUG("VulkanRenderer", "Creating image views...");
         CreateImageView();
+        LOG_DEBUG("VulkanRenderer", "Creating graphics pipeline...");
+        CreateGraphicsPipeline();
     }
 
     void VulkanRenderer::Shutdown()
@@ -155,32 +167,173 @@ namespace Engine
 
     void VulkanRenderer::CreateGraphicsPipeline()
     {
+        // ═══════════════════════════════════════════════════════════
+        // SHADER STAGES
+        // ═══════════════════════════════════════════════════════════
+        LOG_DEBUG("VulkanRenderer", "Loading shader modules...");
         auto vertShaderCode = ReadFile("shaders/triangle.vert.spv");
         auto fragShaderCode = ReadFile("shaders/triangle.frag.spv");
         vk::raii::ShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
         vk::raii::ShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
 
-        // Create shader stage create infos
-        vk::PipelineShaderStageCreateInfo vertShaderStageInfo(
-            {},                                  // flags
-            vk::ShaderStageFlagBits::eVertex,   // stage
-            *vertShaderModule,                   // module
-            "vertMain"                           // pName (entry point)
-        );
-
-        vk::PipelineShaderStageCreateInfo fragShaderStageInfo(
-            {},                                  // flags
-            vk::ShaderStageFlagBits::eFragment, // stage
-            *fragShaderModule,                   // module
-            "fragMain"                           // pName (entry point)
-        );
-
         std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages = {
-            vertShaderStageInfo,
-            fragShaderStageInfo
+            vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, *vertShaderModule, "vertMain"),
+            vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, *fragShaderModule, "fragMain")
         };
+        LOG_DEBUG("VulkanRenderer", "Shader modules created and stages configured");
 
-        // TODO: Continue with pipeline creation using shaderStages
+        // ═══════════════════════════════════════════════════════════
+        // 1. VERTEX INPUT - Describes vertex data format
+        // ═══════════════════════════════════════════════════════════
+        // Empty for now - triangle vertices are hardcoded in the vertex shader
+        vk::PipelineVertexInputStateCreateInfo vertexInputInfo(
+            {},        // flags
+            0, nullptr, // vertexBindingDescriptions
+            0, nullptr  // vertexAttributeDescriptions
+        );
+        LOG_DEBUG("VulkanRenderer", "Vertex input state configured (no vertex data)");
+
+        // ═══════════════════════════════════════════════════════════
+        // 2. INPUT ASSEMBLY - How to interpret vertex data
+        // ═══════════════════════════════════════════════════════════
+        vk::PipelineInputAssemblyStateCreateInfo inputAssembly(
+            {},                                    // flags
+            vk::PrimitiveTopology::eTriangleList, // Every 3 vertices form a triangle
+            VK_FALSE                               // primitiveRestartEnable
+        );
+        LOG_DEBUG("VulkanRenderer", "Input assembly state configured (triangle list)");
+
+        // ═══════════════════════════════════════════════════════════
+        // 3. VIEWPORT & SCISSOR - Render region on screen
+        // ═══════════════════════════════════════════════════════════
+        // Using dynamic state, so we just specify the count here
+        vk::PipelineViewportStateCreateInfo viewportState(
+            {},
+            1, nullptr,  // viewportCount (actual viewport set dynamically)
+            1, nullptr   // scissorCount (actual scissor set dynamically)
+        );
+        LOG_DEBUG("VulkanRenderer", "Viewport state configured (dynamic viewport and scissor)");
+
+        // ═══════════════════════════════════════════════════════════
+        // 4. RASTERIZER - Converts geometry into fragments
+        // ═══════════════════════════════════════════════════════════
+        vk::PipelineRasterizationStateCreateInfo rasterizer(
+            {},                               // flags
+            VK_FALSE,                         // depthClampEnable
+            VK_FALSE,                         // rasterizerDiscardEnable
+            vk::PolygonMode::eFill,          // polygonMode - fill triangles
+            vk::CullModeFlagBits::eBack,     // cullMode - cull back faces
+            vk::FrontFace::eClockwise,       // frontFace
+            VK_FALSE,                         // depthBiasEnable
+            0.0f,                             // depthBiasConstantFactor
+            0.0f,                             // depthBiasClamp
+            0.0f,                             // depthBiasSlopeFactor
+            1.0f                              // lineWidth
+        );
+        LOG_DEBUG("VulkanRenderer", "Rasterizer state configured");
+
+        // ═══════════════════════════════════════════════════════════
+        // 5. MULTISAMPLING - Anti-aliasing (disabled for now)
+        // ═══════════════════════════════════════════════════════════
+        vk::PipelineMultisampleStateCreateInfo multisampling(
+            {},                              // flags
+            vk::SampleCountFlagBits::e1,    // rasterizationSamples - no multisampling
+            VK_FALSE,                        // sampleShadingEnable
+            1.0f,                            // minSampleShading
+            nullptr,                         // pSampleMask
+            VK_FALSE,                        // alphaToCoverageEnable
+            VK_FALSE                         // alphaToOneEnable
+        );
+        LOG_DEBUG("VulkanRenderer", "Multisampling state configured (disabled)");
+
+        // ═══════════════════════════════════════════════════════════
+        // 6. DEPTH/STENCIL - Not needed for 2D triangle
+        // ═══════════════════════════════════════════════════════════
+        // Pass nullptr to pDepthStencilState
+
+        // ═══════════════════════════════════════════════════════════
+        // 7. COLOR BLENDING - How fragment colors combine with framebuffer
+        // ═══════════════════════════════════════════════════════════
+        vk::PipelineColorBlendAttachmentState colorBlendAttachment(
+            VK_FALSE,                        // blendEnable - just overwrite
+            vk::BlendFactor::eOne,          // srcColorBlendFactor
+            vk::BlendFactor::eZero,         // dstColorBlendFactor
+            vk::BlendOp::eAdd,              // colorBlendOp
+            vk::BlendFactor::eOne,          // srcAlphaBlendFactor
+            vk::BlendFactor::eZero,         // dstAlphaBlendFactor
+            vk::BlendOp::eAdd,              // alphaBlendOp
+            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA  // colorWriteMask
+        );
+        LOG_DEBUG("VulkanRenderer", "Color blending state configured (no blending)");
+
+        vk::PipelineColorBlendStateCreateInfo colorBlending(
+            {},                              // flags
+            VK_FALSE,                        // logicOpEnable
+            vk::LogicOp::eCopy,             // logicOp
+            1, &colorBlendAttachment,       // attachmentCount, pAttachments
+            {0.0f, 0.0f, 0.0f, 0.0f}        // blendConstants
+        );
+        LOG_DEBUG("VulkanRenderer", "Color blend state configured");
+
+        // ═══════════════════════════════════════════════════════════
+        // 8. DYNAMIC STATE - Properties that can change without pipeline recreation
+        // ═══════════════════════════════════════════════════════════
+        std::array<vk::DynamicState, 2> dynamicStates = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor
+        };
+        vk::PipelineDynamicStateCreateInfo dynamicState({}, dynamicStates);
+        LOG_DEBUG("VulkanRenderer", "Dynamic state configured (viewport and scissor)");
+
+        // ═══════════════════════════════════════════════════════════
+        // 9. PIPELINE LAYOUT - Describes shader resource bindings (uniforms, etc.)
+        // ═══════════════════════════════════════════════════════════
+        vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
+            {},         // flags
+            0, nullptr, // setLayoutCount, pSetLayouts (descriptor sets)
+            0, nullptr  // pushConstantRangeCount, pPushConstantRanges
+        );
+        m_PipelineLayout = vk::raii::PipelineLayout(m_Device.value(), pipelineLayoutInfo);
+        LOG_DEBUG("VulkanRenderer", "Pipeline layout created");
+
+        // ═══════════════════════════════════════════════════════════
+        // 10. DYNAMIC RENDERING INFO (Vulkan 1.3 - replaces render passes)
+        // ═══════════════════════════════════════════════════════════
+        vk::Format colorFormat = m_SwapchainImageFormat.format;
+        vk::PipelineRenderingCreateInfo renderingInfo(
+            {},                           // flags
+            1, &colorFormat,             // viewMask, colorAttachmentCount, pColorAttachmentFormats
+            vk::Format::eUndefined,      // depthAttachmentFormat
+            vk::Format::eUndefined       // stencilAttachmentFormat
+        );
+        LOG_DEBUG("VulkanRenderer", "Dynamic rendering info configured");
+
+        // ═══════════════════════════════════════════════════════════
+        // FINAL ASSEMBLY - Bundle everything into the graphics pipeline
+        // ═══════════════════════════════════════════════════════════
+        vk::GraphicsPipelineCreateInfo pipelineInfo(
+            {},                          // flags
+            shaderStages,               // stages
+            &vertexInputInfo,           // pVertexInputState
+            &inputAssembly,             // pInputAssemblyState
+            nullptr,                     // pTessellationState
+            &viewportState,             // pViewportState
+            &rasterizer,                // pRasterizationState
+            &multisampling,             // pMultisampleState
+            nullptr,                     // pDepthStencilState (not using depth)
+            &colorBlending,             // pColorBlendState
+            &dynamicState,              // pDynamicState
+            *m_PipelineLayout,          // layout
+            nullptr,                     // renderPass (using dynamic rendering)
+            0,                           // subpass
+            nullptr,                     // basePipelineHandle
+            -1                           // basePipelineIndex
+        );
+        pipelineInfo.pNext = &renderingInfo;
+
+        m_GraphicsPipeline = vk::raii::Pipeline(m_Device.value(), nullptr, pipelineInfo);
+        LOG_INFO("VulkanRenderer", "Graphics pipeline created successfully");
     }
 
     vk::raii::ShaderModule VulkanRenderer::CreateShaderModule(const std::vector<char>& code)
@@ -304,20 +457,30 @@ namespace Engine
 
         std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
-       // query for Vulkan 1.3 features
-        vk::StructureChain <
+        // Query supported Vulkan 1.3 features from the physical device
+        auto supportedFeatures = m_PhysicalDevice->getFeatures2<
             vk::PhysicalDeviceFeatures2,
             vk::PhysicalDeviceVulkan13Features,
-            vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
-        > featureChain;
+            vk::PhysicalDeviceDynamicRenderingFeatures
+        >();
 
-        // TODO: Figure out what to do with these features.
-        auto& features2             = featureChain.get<vk::PhysicalDeviceFeatures2>();
-        auto& vulkan13Features      = featureChain.get<vk::PhysicalDeviceVulkan13Features>();
-        auto& dynamicStateFeatures  = featureChain.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+        auto& supported13 = supportedFeatures.get<vk::PhysicalDeviceVulkan13Features>();
+
+        LOG_DEBUG("VulkanRenderer", "Device supports dynamicRendering: {}",
+                  supported13.dynamicRendering ? "yes" : "no");
+        LOG_DEBUG("VulkanRenderer", "Device supports synchronization2: {}",
+                  supported13.synchronization2 ? "yes" : "no");
+
+        // Set up features we want to enable (chained via pNext)
+        vk::PhysicalDeviceVulkan13Features vulkan13Features{};
+        vulkan13Features.dynamicRendering = VK_TRUE;
+        vulkan13Features.synchronization2 = VK_TRUE;
+
+        vk::PhysicalDeviceFeatures2 features2{};
+        features2.pNext = &vulkan13Features;
 
         // create a Device
-        float                     queuePriority = 1.0f;
+        float queuePriority = 1.0f;
 
         for (uint32_t queueFamily : indices.UniqueFamilies())
         {
@@ -330,8 +493,6 @@ namespace Engine
             queueCreateInfos.push_back(deviceQueueCreateInfo);
         }
 
-        // ... features setup ...
-
         vk::DeviceCreateInfo deviceCreateInfo(
             {},                                                 // flags
             static_cast<uint32_t>(queueCreateInfos.size()),     // queueCreateInfoCount
@@ -339,9 +500,9 @@ namespace Engine
             0, nullptr,                                         // EnabledLayerCount / EnabledLayerNames
             static_cast<uint32_t>(m_EnabledDeviceExtensions.size()),   // enabledExtensionCount
             m_EnabledDeviceExtensions.data(),                          // ppEnabledExtensionNames
-            {},                                                 // pEnabledFeatures
-            features2                                           // pNext
+            nullptr                                             // pEnabledFeatures (using pNext instead)
         );
+        deviceCreateInfo.pNext = &features2;
 
         m_Device = vk::raii::Device(m_PhysicalDevice.value(), deviceCreateInfo);
         if (!m_Device)
