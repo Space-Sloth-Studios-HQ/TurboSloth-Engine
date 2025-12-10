@@ -151,6 +151,10 @@ namespace Engine
         CreateImageView();
         LOG_DEBUG("VulkanRenderer", "Creating graphics pipeline...");
         CreateGraphicsPipeline();
+        LOG_DEBUG("VulkanRenderer", "Creating command pool...");
+        CreateCommandPool();
+        LOG_DEBUG("VulkanRenderer", "Creating command buffer...");
+        CreateCommandBuffer();
     }
 
     void VulkanRenderer::Shutdown()
@@ -334,6 +338,30 @@ namespace Engine
 
         m_GraphicsPipeline = vk::raii::Pipeline(m_Device.value(), nullptr, pipelineInfo);
         LOG_INFO("VulkanRenderer", "Graphics pipeline created successfully");
+    }
+
+    void VulkanRenderer::CreateCommandPool()
+    {
+        vk::CommandPoolCreateInfo poolInfo(
+            vk::CommandPoolCreateFlagBits::eResetCommandBuffer,  // flags - allow individual buffer reset
+            m_GraphicsQueueFamilyIdx                              // queueFamilyIndex
+        );
+
+        m_CommandPool = vk::raii::CommandPool(m_Device.value(), poolInfo);
+        LOG_INFO("VulkanRenderer", "Command pool created");
+    }
+
+    void VulkanRenderer::CreateCommandBuffer()
+    {
+        vk::CommandBufferAllocateInfo allocInfo(
+            *m_CommandPool,                      // commandPool
+            vk::CommandBufferLevel::ePrimary,   // level - can be submitted directly to queue
+            1                                    // commandBufferCount
+        );
+
+        auto commandBuffers = vk::raii::CommandBuffers(m_Device.value(), allocInfo);
+        m_CommandBuffer = std::move(commandBuffers[0]);
+        LOG_INFO("VulkanRenderer", "Command buffer allocated");
     }
 
     vk::raii::ShaderModule VulkanRenderer::CreateShaderModule(const std::vector<char>& code)

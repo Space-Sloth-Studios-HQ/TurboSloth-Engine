@@ -22,6 +22,8 @@ namespace Engine
         void CreateLogicalDevice();
         void CreateImageView();
         void CreateGraphicsPipeline();
+        void CreateCommandPool();
+        void CreateCommandBuffer();
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
 
@@ -42,6 +44,10 @@ namespace Engine
         // Graphics pipeline
         std::optional<vk::raii::PipelineLayout> m_PipelineLayout;
         std::optional<vk::raii::Pipeline> m_GraphicsPipeline;
+
+        // Command buffers
+        std::optional<vk::raii::CommandPool> m_CommandPool;
+        std::optional<vk::raii::CommandBuffer> m_CommandBuffer;
 
         uint32_t m_GraphicsQueueFamilyIdx = 0;
         uint32_t m_PresentQueueFamilyIdx = 0;
