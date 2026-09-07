@@ -5,7 +5,10 @@ build/
 compile_commands.json
 
 # IDE and editor files
-.vscode/
+# NOTE: .vscode/* (not .vscode/) — git won't descend into an excluded
+# directory, so a negation below could never re-include anything.
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -14,4 +17,4 @@ compile_commands.json
 
 # Language server cache
 .ccls-cache/
-.clangd/
+.cache/

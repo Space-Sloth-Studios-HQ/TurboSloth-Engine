@@ -1,0 +1,11 @@
+# clangd configuration — https://clangd.llvm.org/config
+#
+# CMake writes compile_commands.json into each preset's binary dir. clangd only
+# searches the project root and ./build by default, so point it at the preset
+# we actually develop against.
+#
+# NOTE: if you switch your daily build to another preset (clang-release, or
+# macos-debug on the Mac), update this path or navigation will silently go
+# stale against a database nothing regenerates.
+CompileFlags:
+  CompilationDatabase: build/clang-debug

@@ -1,0 +1,25 @@
+{
+  // ─── C++ language server ────────────────────────────────────────────
+  // clangd powers gd, hover, completion and rename. It reads the compile
+  // database located via the .clangd file at the repo root.
+  "clangd.arguments": [
+    "--background-index",      // index the whole project, not just open files
+    "--clang-tidy",            // inline lint diagnostics (drop this if noisy)
+    "--header-insertion=never", // don't let completion silently add #includes
+    "--completion-style=detailed"
+  ],
+
+  // Not installed today, but if the MS C/C++ extension ever shows up it will
+  // fight clangd over IntelliSense. Disarm it pre-emptively.
+  "C_Cpp.intelliSenseEngine": "disabled",
+
+  // ─── Vim remaps ─────────────────────────────────────────────────────
+  // gd / gh / gf / Ctrl+o are built into VSCodeVim already. These are the
+  // useful ones it does NOT bind by default. Delete any you don't want.
+  "vim.normalModeKeyBindingsNonRecursive": [
+    { "before": ["g", "r"], "commands": ["editor.action.goToReferences"] },
+    { "before": ["<leader>", "r"], "commands": ["editor.action.rename"] },
+    { "before": ["]", "d"], "commands": ["editor.action.marker.next"] },
+    { "before": ["[", "d"], "commands": ["editor.action.marker.prev"] }
+  ]
+}
