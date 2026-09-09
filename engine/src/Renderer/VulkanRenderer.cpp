@@ -2,11 +2,8 @@
 #include "Engine/WindowVulkan.h"
 #include "Engine/Logging/Logger.h"
 #include <GLFW/glfw3.h>
-#include <ranges>
 #include <stdexcept>
 #include <vector>
-#include <map>
-#include <iostream>
 #include <fstream>
 #include <cstring>
 #include <set>
@@ -500,9 +497,13 @@ namespace Engine
                   supported13.synchronization2 ? "yes" : "no");
 
         // Set up features we want to enable (chained via pNext)
+        vk::PhysicalDeviceVulkan11Features vulkan11Features{};
+        vulkan11Features.shaderDrawParameters = VK_TRUE;
+
         vk::PhysicalDeviceVulkan13Features vulkan13Features{};
         vulkan13Features.dynamicRendering = VK_TRUE;
         vulkan13Features.synchronization2 = VK_TRUE;
+        vulkan13Features.pNext = &vulkan11Features;
 
         vk::PhysicalDeviceFeatures2 features2{};
         features2.pNext = &vulkan13Features;
@@ -608,6 +609,16 @@ namespace Engine
                 }
                 LOG_INFO("VulkanRenderer", "  ✓ Supports {}", requiredExt);
             }
+
+            // Check feature11
+            auto candidate = device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features>();
+            const auto& feature11 = candidate.get<vk::PhysicalDeviceVulkan11Features>();
+            if (!feature11.shaderDrawParameters)
+            {
+                LOG_WARN("VulkanRenderer", "  ❌ Does not support shaderDrawParameters");
+                return false;
+            }
+            LOG_INFO("VulkanRenderer", "  ✓ Supports shaderDrawParameters");
             
             return true;
         };
@@ -678,19 +689,59 @@ namespace Engine
         // Add portability enumeration extension for MoltenVK on macOS
         extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
-        // Add debug utils extension
+        vk::InstanceCreateInfo instanceCreateInfo;
+
+        // Add debug utils extension on Debug builds
         if (enableValidationLayers)
         {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            // Check if m_ValidationLayers is available via enumerateInstanceLayerProperties
+            auto layerProperties = m_Context.enumerateInstanceLayerProperties();
+            for (const char* layerName : m_ValidationLayers)
+            {
+                if (std::ranges::none_of(layerProperties,
+                    [&](const vk::LayerProperties& prop) {
+                        return std::strcmp(prop.layerName, layerName) == 0;
+                    }))
+                {
+                    throw std::runtime_error("Required validation layer not supported: " + std::string(layerName));
+                }
+            }
+
+            std::array<vk::ValidationFeatureEnableEXT, 1> validationFeaturesArray {
+                vk::ValidationFeatureEnableEXT::eSynchronizationValidation
+            };
+
+            vk::ValidationFeaturesEXT validationFeatures = vk::ValidationFeaturesEXT(
+                static_cast<uint32_t>(validationFeaturesArray.size()),
+                validationFeaturesArray.data(),
+                0,
+                nullptr,
+                nullptr
+            );
+
+            instanceCreateInfo = vk::InstanceCreateInfo(
+                vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,  // flags - required for MoltenVK
+                &appInfo,                                     // pApplicationInfo
+                static_cast<uint32_t>(m_ValidationLayers.size()), 
+                m_ValidationLayers.data(),                                   // enabled layers (count, names)
+                static_cast<uint32_t>(extensions.size()),    // enabled extensions count
+                extensions.data(),                             // enabled extension names
+                &validationFeatures
+            );
+        }
+        else
+        {
+            instanceCreateInfo = vk::InstanceCreateInfo(
+                vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,  // flags - required for MoltenVK
+                &appInfo,                                     // pApplicationInfo
+                0, 
+                nullptr,                                   // enabled layers (count, names)
+                static_cast<uint32_t>(extensions.size()),    // enabled extensions count
+                extensions.data()                             // enabled extension names
+            );
         }
 
-        vk::InstanceCreateInfo instanceCreateInfo(
-            vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,  // flags - required for MoltenVK
-            &appInfo,                                     // pApplicationInfo
-            0, nullptr,                                   // enabled layers (count, names)
-            static_cast<uint32_t>(extensions.size()),    // enabled extensions count
-            extensions.data()                             // enabled extension names
-        );
 
         // Create the Vulkan instance
         m_Instance = vk::raii::Instance(m_Context, instanceCreateInfo);
