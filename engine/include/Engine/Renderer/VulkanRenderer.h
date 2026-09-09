@@ -24,6 +24,7 @@ namespace Engine
         void CreateGraphicsPipeline();
         void CreateCommandPool();
         void CreateCommandBuffer();
+        void CreateSyncObjects();
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
 
@@ -48,6 +49,11 @@ namespace Engine
         // Command buffers
         std::optional<vk::raii::CommandPool> m_CommandPool;
         std::optional<vk::raii::CommandBuffer> m_CommandBuffer;
+
+        // Sync objects
+        std::optional<vk::raii::Semaphore> m_ImageAvailableSemaphore;
+        std::vector<vk::raii::Semaphore> m_RenderFinishedSemaphores;
+        std::optional<vk::raii::Fence> m_InFlightFence;
 
         uint32_t m_GraphicsQueueFamilyIdx = 0;
         uint32_t m_PresentQueueFamilyIdx = 0;

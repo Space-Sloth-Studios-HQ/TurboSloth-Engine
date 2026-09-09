@@ -1,7 +1,5 @@
 #include "Engine/Core/Application.h"
 #include <chrono>
-#include <thread>
-#include <iostream>
 #include <Engine/Logging/Logger.h>
 
 namespace Engine
@@ -41,6 +39,8 @@ namespace Engine
 
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
+
+            m_Renderer.RenderFrame();
 
             // crude temporary limiter so the console doesn't spam
             // std::this_thread::sleep_for(std::chrono::milliseconds(16));

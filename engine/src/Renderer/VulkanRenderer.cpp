@@ -152,6 +152,8 @@ namespace Engine
         CreateCommandPool();
         LOG_DEBUG("VulkanRenderer", "Creating command buffer...");
         CreateCommandBuffer();
+        LOG_DEBUG("VulkanRenderer", "Creating synchronization objects...");
+        CreateSyncObjects();
     }
 
     void VulkanRenderer::Shutdown()
@@ -159,11 +161,113 @@ namespace Engine
         // RAII wrappers (vk::raii::Instance) handle destruction automatically
         // Explicitly reset the optional to destroy the instance now
         // This also implicitly destroys the VkPhysicalDevice so no need to set it here
+        m_Device->waitIdle();
     }
 
     void VulkanRenderer::RenderFrame()
     {
         // Implementation for rendering a single frame using Vulkan
+        LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
+
+        // Wait for fences
+        while (vk::Result::eTimeout == 
+            m_Device->waitForFences(**m_InFlightFence, VK_TRUE, UINT64_MAX));
+        
+        // Acquire the next image from the swapchain
+        auto [acquireResult, imageIndex] = m_Swapchain->acquireNextImage(
+            UINT64_MAX, **m_ImageAvailableSemaphore, nullptr);
+        
+        // Reset the fence to indicate that the GPU is now using it for the current frame
+        m_Device->resetFences(**m_InFlightFence);
+
+        // Record command buffer for the acquired image
+        m_CommandBuffer->reset();
+        m_CommandBuffer->begin({});
+
+        vk::ImageMemoryBarrier2 toColorAttachment{};
+        toColorAttachment.srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
+        toColorAttachment.srcAccessMask = {};
+        toColorAttachment.dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
+        toColorAttachment.dstAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite;
+        toColorAttachment.oldLayout = vk::ImageLayout::eUndefined;
+        toColorAttachment.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        toColorAttachment.image = m_Swapchain->getImages()[imageIndex];
+        toColorAttachment.subresourceRange = {
+            vk::ImageAspectFlagBits::eColor, // aspectMask
+            0,                                // baseMipLevel
+            1,                                // levelCount
+            0,                                // baseArrayLayer
+            1                                 // layerCount
+        };
+
+        vk::DependencyInfo dependencyInfo{};
+        dependencyInfo.imageMemoryBarrierCount = 1;
+        dependencyInfo.pImageMemoryBarriers = &toColorAttachment;
+
+        m_CommandBuffer->pipelineBarrier2(dependencyInfo);
+
+        // Begin rendering
+        vk::ClearValue clearColor = vk::ClearValue().setColor(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+        vk::RenderingAttachmentInfo colorAttachment{};
+        colorAttachment.imageView = *m_SwapchainImageViews[imageIndex];
+        colorAttachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+        colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        colorAttachment.clearValue = clearColor;
+
+        vk::RenderingInfo renderingInfo{};
+        renderingInfo.renderArea = vk::Rect2D({0,0}, m_SwapchainExtent);
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = &colorAttachment;
+
+        m_CommandBuffer->beginRendering(renderingInfo);
+
+        // Draw
+        m_CommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, **m_GraphicsPipeline);
+        m_CommandBuffer->setViewport(0, vk::Viewport(
+            0.0f, 0.0f, 
+            static_cast<float>(m_SwapchainExtent.width), 
+            static_cast<float>(m_SwapchainExtent.height), 
+            0.0f, 1.0f));
+
+        m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
+        m_CommandBuffer->draw(3, 1, 0, 0); // Draw a triangle
+        m_CommandBuffer->endRendering();
+
+        // Transition the swapchain image to present layout
+        vk::ImageMemoryBarrier2 toPresent{};
+        toPresent.srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
+        toPresent.srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite;
+        toPresent.dstStageMask = vk::PipelineStageFlagBits2::eBottomOfPipe;
+        toPresent.dstAccessMask = {};
+        toPresent.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        toPresent.newLayout = vk::ImageLayout::ePresentSrcKHR;
+        toPresent.image = m_Swapchain->getImages()[imageIndex];
+        toPresent.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        toPresent.subresourceRange.baseMipLevel = 0;
+        toPresent.subresourceRange.levelCount = 1;
+        toPresent.subresourceRange.baseArrayLayer = 0;
+        toPresent.subresourceRange.layerCount = 1;
+
+        vk::DependencyInfo presentDependency{};
+        presentDependency.imageMemoryBarrierCount = 1;
+        presentDependency.pImageMemoryBarriers = &toPresent;
+
+        m_CommandBuffer->pipelineBarrier2(presentDependency);
+        m_CommandBuffer->end();
+
+        // Submit and present
+        vk::Semaphore waitSemaphores[]   = { **m_ImageAvailableSemaphore };
+        vk::Semaphore signalSemaphores[] = { *m_RenderFinishedSemaphores[imageIndex] };
+        vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+
+        vk::SubmitInfo submitInfo(waitSemaphores, waitStages, **m_CommandBuffer, signalSemaphores);
+        m_GraphicsQueue->submit(submitInfo, **m_InFlightFence);
+
+        vk::PresentInfoKHR presentInfo(signalSemaphores, **m_Swapchain, imageIndex);
+        auto presentResult = m_PresentQueue->presentKHR(presentInfo);
+
     }
 
     void VulkanRenderer::CreateGraphicsPipeline()
@@ -745,5 +849,17 @@ namespace Engine
 
         // Create the Vulkan instance
         m_Instance = vk::raii::Instance(m_Context, instanceCreateInfo);
+    }
+
+    void VulkanRenderer::CreateSyncObjects()
+    {
+        vk::SemaphoreCreateInfo semaphoreInfo{};
+        vk::FenceCreateInfo fenceInfo{};
+        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+
+        m_ImageAvailableSemaphore = vk::raii::Semaphore(m_Device.value(), semaphoreInfo);
+        for (auto swapchain : m_SwapchainImages)
+            m_RenderFinishedSemaphores.push_back(vk::raii::Semaphore(m_Device.value(), semaphoreInfo));
+        m_InFlightFence = vk::raii::Fence(m_Device.value(), fenceInfo);
     }
 }

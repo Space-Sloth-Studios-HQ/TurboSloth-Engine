@@ -1,4 +1,3 @@
-#include <iostream>
 #include <Engine/Core/Application.h>
 #include <Engine/Logging/Logger.h>
 
