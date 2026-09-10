@@ -256,13 +256,20 @@ namespace Engine
 
         vk::PresentInfoKHR presentInfo(signalSemaphores, **m_Swapchain, imageIndex);
         auto presentResult = m_PresentQueue->presentKHR(presentInfo);
-
+        
+        if (presentResult == vk::Result::eSuboptimalKHR) {
+            m_SubOptimal = true;
+        }
     }
 
     void VulkanRenderer::RenderFrame()
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
+        if (m_SubOptimal) {
+            LOG_DEBUG("VulkanRenderer", "Swapchain is suboptimal. Consider recreating swapchain.");
+            RecreateSwapchain();
+        }
 
         // Wait for fences
         while (vk::Result::eTimeout == 
@@ -272,6 +279,9 @@ namespace Engine
         try {
             auto [acquireResult, imageIndex] = m_Swapchain->acquireNextImage(
                 UINT64_MAX, **m_ImageAvailableSemaphore, nullptr);
+            if (acquireResult == vk::Result::eSuboptimalKHR) {
+                m_SubOptimal = true;
+            }
             BeginFrame(imageIndex);
 
             // Draw
@@ -619,6 +629,7 @@ namespace Engine
         LOG_DEBUG("VulkanRenderer", "\tCreated new image views for extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
         CreateRenderFinishedSemaphores();
         LOG_DEBUG("VulkanRenderer", "\tCreated new render finished semaphores for extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        m_SubOptimal = false;
     }
 
     void VulkanRenderer::CreateSurface()

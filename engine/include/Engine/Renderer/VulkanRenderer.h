@@ -66,6 +66,7 @@ namespace Engine
         uint32_t m_PresentQueueFamilyIdx = 0;
         std::optional<vk::raii::Queue> m_GraphicsQueue;
         std::optional<vk::raii::Queue> m_PresentQueue;
+        bool m_SubOptimal = false;
 
         // Intended for use when setting up Vulkan validation layers in instance creation.
         std::vector<char const*> m_ValidationLayers = {
