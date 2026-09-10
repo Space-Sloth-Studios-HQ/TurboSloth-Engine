@@ -135,15 +135,16 @@ namespace Engine
 {
     void VulkanRenderer::Init(const IWindow& window)
     {
-        CreateInstance(window);
+        m_Window = &window;
+        CreateInstance();
         LOG_DEBUG("VulkanRenderer", "Creating window surface...");
-        CreateSurface(window);
+        CreateSurface();
         LOG_DEBUG("VulkanRenderer", "Picking physical device...");
         PickPhysicalDevice();
         LOG_DEBUG("VulkanRenderer", "Creating logical device...");
         CreateLogicalDevice();
         LOG_DEBUG("VulkanRenderer", "Creating swap chain...");
-        CreateSwapChain(window);
+        CreateSwapChain();
         LOG_DEBUG("VulkanRenderer", "Creating image views...");
         CreateImageView();
         LOG_DEBUG("VulkanRenderer", "Creating graphics pipeline...");
@@ -164,18 +165,10 @@ namespace Engine
         m_Device->waitIdle();
     }
 
-    void VulkanRenderer::RenderFrame()
+    void VulkanRenderer::BeginFrame(uint32_t imageIndex)
     {
-        // Implementation for rendering a single frame using Vulkan
-        LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
-
-        // Wait for fences
-        while (vk::Result::eTimeout == 
-            m_Device->waitForFences(**m_InFlightFence, VK_TRUE, UINT64_MAX));
-        
-        // Acquire the next image from the swapchain
-        auto [acquireResult, imageIndex] = m_Swapchain->acquireNextImage(
-            UINT64_MAX, **m_ImageAvailableSemaphore, nullptr);
+        // Implementation for beginning a frame
+        LOG_DEBUG("VulkanRenderer", "Beginning a frame...");
         
         // Reset the fence to indicate that the GPU is now using it for the current frame
         m_Device->resetFences(**m_InFlightFence);
@@ -222,17 +215,13 @@ namespace Engine
         renderingInfo.pColorAttachments = &colorAttachment;
 
         m_CommandBuffer->beginRendering(renderingInfo);
+    }
 
-        // Draw
-        m_CommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, **m_GraphicsPipeline);
-        m_CommandBuffer->setViewport(0, vk::Viewport(
-            0.0f, 0.0f, 
-            static_cast<float>(m_SwapchainExtent.width), 
-            static_cast<float>(m_SwapchainExtent.height), 
-            0.0f, 1.0f));
+    void VulkanRenderer::EndFrame(uint32_t imageIndex)
+    {
+        // Implementation for ending a frame
+        LOG_DEBUG("VulkanRenderer", "Ending a frame...");
 
-        m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
-        m_CommandBuffer->draw(3, 1, 0, 0); // Draw a triangle
         m_CommandBuffer->endRendering();
 
         // Transition the swapchain image to present layout
@@ -269,6 +258,41 @@ namespace Engine
         auto presentResult = m_PresentQueue->presentKHR(presentInfo);
 
     }
+
+    void VulkanRenderer::RenderFrame()
+    {
+        // Implementation for rendering a single frame using Vulkan
+        LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
+
+        // Wait for fences
+        while (vk::Result::eTimeout == 
+            m_Device->waitForFences(**m_InFlightFence, VK_TRUE, UINT64_MAX));
+        
+        // Acquire the next image from the swapchain
+        try {
+            auto [acquireResult, imageIndex] = m_Swapchain->acquireNextImage(
+                UINT64_MAX, **m_ImageAvailableSemaphore, nullptr);
+            BeginFrame(imageIndex);
+
+            // Draw
+            m_CommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, **m_GraphicsPipeline);
+            m_CommandBuffer->setViewport(0, vk::Viewport(
+                0.0f, 0.0f, 
+                static_cast<float>(m_SwapchainExtent.width), 
+                static_cast<float>(m_SwapchainExtent.height), 
+                0.0f, 1.0f));
+
+            m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
+            m_CommandBuffer->draw(3, 1, 0, 0); // Draw a triangle
+
+            EndFrame(imageIndex);
+        } catch (const vk::OutOfDateKHRError& e) {
+            LOG_DEBUG("VulkanRenderer", "Swapchain is out of date. Need to recreate swapchain.");
+            RecreateSwapchain();
+        }
+
+    }
+
 
     void VulkanRenderer::CreateGraphicsPipeline()
     {
@@ -516,7 +540,7 @@ namespace Engine
         }
     }
 
-    void VulkanRenderer::CreateSwapChain(const IWindow& window)
+    void VulkanRenderer::CreateSwapChain()
     {
         auto surfaceCapabilities = m_PhysicalDevice->getSurfaceCapabilitiesKHR(*m_Surface);
         m_SwapchainImageFormat = ChooseSwapSurfaceFormat(
@@ -525,7 +549,8 @@ namespace Engine
         m_SwapchainPresentMode = ChooseSwapPresentMode(
             m_PhysicalDevice->getSurfacePresentModesKHR(*m_Surface)
         );
-        m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, window.GetWidth(), window.GetHeight());
+        m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, m_Window->GetWidth(), m_Window->GetHeight());
+        LOG_DEBUG("VulkanRenderer", "\tChosen swapchain extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
 
         uint32_t minImageCount = (surfaceCapabilities.maxImageCount > 0) 
             ? std::min(surfaceCapabilities.maxImageCount, std::max(surfaceCapabilities.minImageCount + 1, 2u)) 
@@ -546,7 +571,7 @@ namespace Engine
             vk::CompositeAlphaFlagBitsKHR::eOpaque,    // compositeAlpha
             m_SwapchainPresentMode,               // presentMode
             VK_TRUE,                              // clipped
-            nullptr                               // oldSwapchain
+            m_Swapchain ? **m_Swapchain : nullptr // oldSwapchain
         );
 
         if (m_GraphicsQueueFamilyIdx != m_PresentQueueFamilyIdx)
@@ -564,14 +589,43 @@ namespace Engine
         }
 
         m_Swapchain = vk::raii::SwapchainKHR(m_Device.value(), swapChainCreateInfo);
+        LOG_DEBUG("VulkanRenderer", "\tCreated swapchain with {} images for extent: {}x{}", m_SwapchainImages.size(), m_SwapchainExtent.width, m_SwapchainExtent.height);
         m_SwapchainImages = m_Swapchain->getImages();
+        LOG_DEBUG("VulkanRenderer", "\tRetrieved {} swapchain images for extent: {}x{}", m_SwapchainImages.size(), m_SwapchainExtent.width, m_SwapchainExtent.height);
     }
 
-    void VulkanRenderer::CreateSurface(const IWindow& window)
+    void VulkanRenderer::RecreateSwapchain()
+    {
+        // Implementation for recreating the swapchain
+        LOG_DEBUG("VulkanRenderer", "Recreating swapchain...");
+        // Actual swapchain recreation logic goes here
+
+        auto surfaceCapabilities = m_PhysicalDevice->getSurfaceCapabilitiesKHR(*m_Surface);
+        m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, m_Window->GetWidth(), m_Window->GetHeight());
+        if (m_SwapchainExtent.width == 0 || m_SwapchainExtent.height == 0)
+        {
+            LOG_DEBUG("VulkanRenderer", "Swapchain extent is zero, waiting for window to be resized...");
+            return; // Exit early if the swapchain extent is zero
+        }
+
+        LOG_DEBUG("VulkanRenderer", "\tm_SwapchainExtent recreated: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        
+        m_Device->waitIdle();
+        m_SwapchainImageViews.clear();
+        LOG_DEBUG("VulkanRenderer", "\tCleared swapchain image views for new extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        CreateSwapChain();
+        LOG_DEBUG("VulkanRenderer", "\tCreated new swapchain for extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        CreateImageView();
+        LOG_DEBUG("VulkanRenderer", "\tCreated new image views for extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        CreateRenderFinishedSemaphores();
+        LOG_DEBUG("VulkanRenderer", "\tCreated new render finished semaphores for extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+    }
+
+    void VulkanRenderer::CreateSurface()
     {
         // Create a Vulkan surface using the native window handle
         VkSurfaceKHR surface;
-        GLFWwindow* glfwWindow = static_cast<GLFWwindow*>(window.GetNativeHandle());
+        GLFWwindow* glfwWindow = static_cast<GLFWwindow*>(m_Window->GetNativeHandle());
         if (glfwCreateWindowSurface(static_cast<VkInstance>(**m_Instance), glfwWindow, nullptr, &surface) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create window surface!");
@@ -762,7 +816,7 @@ namespace Engine
     }
 
 
-    void VulkanRenderer::CreateInstance(const IWindow& window)
+    void VulkanRenderer::CreateInstance()
     {
         LOG_INFO("VulkanRenderer", "Creating Vulkan instance...");
         vk::ApplicationInfo appInfo(
@@ -775,7 +829,7 @@ namespace Engine
 
         // Get required extensions from GLFW
         std::vector<const char*> extensions;
-        Engine::WindowVulkan::GetRequiredVulkanExtensions(window, extensions);
+        Engine::WindowVulkan::GetRequiredVulkanExtensions(*m_Window, extensions);
 
         // Check if the required GLFW extensions are supported by Vulkan implementation
         auto extensionProperties = m_Context.enumerateInstanceExtensionProperties();
@@ -853,13 +907,29 @@ namespace Engine
 
     void VulkanRenderer::CreateSyncObjects()
     {
-        vk::SemaphoreCreateInfo semaphoreInfo{};
-        vk::FenceCreateInfo fenceInfo{};
-        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+        CreateImageAvailableSemaphore();
+        CreateInFlightFence();
+        CreateRenderFinishedSemaphores();
+    }
 
-        m_ImageAvailableSemaphore = vk::raii::Semaphore(m_Device.value(), semaphoreInfo);
+    void VulkanRenderer::CreateRenderFinishedSemaphores()
+    {
+        m_RenderFinishedSemaphores.clear();
+        vk::SemaphoreCreateInfo semaphoreInfo{};
         for (auto swapchain : m_SwapchainImages)
             m_RenderFinishedSemaphores.push_back(vk::raii::Semaphore(m_Device.value(), semaphoreInfo));
+    }
+
+    void VulkanRenderer::CreateImageAvailableSemaphore()
+    {
+        vk::SemaphoreCreateInfo semaphoreInfo{};
+        m_ImageAvailableSemaphore = vk::raii::Semaphore(m_Device.value(), semaphoreInfo);
+    }
+
+    void VulkanRenderer::CreateInFlightFence()
+    {
+        vk::FenceCreateInfo fenceInfo{};
+        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
         m_InFlightFence = vk::raii::Fence(m_Device.value(), fenceInfo);
     }
 }

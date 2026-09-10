@@ -14,20 +14,27 @@ namespace Engine
         void Shutdown();
         void RenderFrame();
     private:
-        void CreateInstance(const IWindow& window);
+        void CreateInstance();
         void PickPhysicalDevice();
-        void CreateSurface(const IWindow& window);
-        void CreateSwapChain(const IWindow& window);
-        void RecreateSwapchain(uint32_t width, uint32_t height);
+        void CreateSurface();
+        void CreateSwapChain();
+        void RecreateSwapchain();
         void CreateLogicalDevice();
         void CreateImageView();
         void CreateGraphicsPipeline();
         void CreateCommandPool();
         void CreateCommandBuffer();
         void CreateSyncObjects();
+        void CreateImageAvailableSemaphore();
+        void CreateInFlightFence();
+        void CreateRenderFinishedSemaphores();
+
+        void BeginFrame(uint32_t imageIndex);
+        void EndFrame(uint32_t imageIndex);
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
 
+        const IWindow* m_Window = nullptr;
         vk::raii::Context  m_Context;
         std::optional<vk::raii::Instance> m_Instance;
         std::optional<vk::raii::SurfaceKHR> m_Surface;
