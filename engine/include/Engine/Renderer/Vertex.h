@@ -1,0 +1,39 @@
+#pragma once
+
+#include <glm/glm.hpp>
+#include <vulkan/vulkan_raii.hpp>
+
+namespace Engine {
+class Vertex {
+public:
+    glm::vec2 position;
+    glm::vec3 color;
+    // glm::vec2 texCoord;
+
+    static vk::VertexInputBindingDescription GetBindingDescription() {
+        vk::VertexInputBindingDescription bindingDescription(
+            0,                          // binding
+            sizeof(Vertex),             // stride
+            vk::VertexInputRate::eVertex // inputRate
+        );
+        return bindingDescription;
+    }
+
+    static std::array<vk::VertexInputAttributeDescription, 2> GetAttributeDescriptions() {
+        std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions = {};
+        attributeDescriptions[0] = vk::VertexInputAttributeDescription(
+            0,                          // location
+            0,                          // binding
+            vk::Format::eR32G32Sfloat,  // format
+            offsetof(Vertex, position)  // offset
+        );
+        attributeDescriptions[1] = vk::VertexInputAttributeDescription(
+            1,                          // location
+            0,                          // binding
+            vk::Format::eR32G32B32Sfloat, // format
+            offsetof(Vertex, color)    // offset
+        );
+        return attributeDescriptions;
+    }
+};
+} // namespace Engine::Math

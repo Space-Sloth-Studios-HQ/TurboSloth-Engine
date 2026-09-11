@@ -31,6 +31,7 @@ namespace Engine
 
         std::unique_ptr<IWindow> m_Window;
         VulkanRenderer m_Renderer; // Maybe this can be abstracted later
+        std::optional<AllocatedBuffer> m_VertexBuffer;
 
         std::vector<std::unique_ptr<Layer>> m_Layers;
     public:

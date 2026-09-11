@@ -14,3 +14,13 @@ endif()
 set_target_properties(KHApp PROPERTIES OUTPUT_NAME "khclone")
 
 target_link_libraries(KHApp PRIVATE KHEngine)
+# Convenience target: build, then run from the binary dir so the relative
+# "shaders/*.spv" paths in VulkanRenderer resolve.
+#   cmake --build build/clang-debug --target run
+add_custom_target(run
+  COMMAND $<TARGET_FILE:KHApp>
+  DEPENDS KHApp
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  USES_TERMINAL
+  COMMENT "Running khclone"
+)

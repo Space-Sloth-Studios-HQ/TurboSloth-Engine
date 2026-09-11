@@ -11,6 +11,13 @@ namespace Engine
 
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
+        // Temporary vertex buffer for hardcoded triangle vertices in the vertex shader
+        std::vector<Vertex> vertices = {
+            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, 0.9f}, {1.0f, 1.0f, 0.0f}},
+            {{-0.2f, 0.5f}, {0.0f, 1.0f, 1.0f}}
+        };
+        m_VertexBuffer = m_Renderer.CreateVertexBuffer(vertices);
     }
 
     Application::~Application()
@@ -29,6 +36,8 @@ namespace Engine
         using clock = std::chrono::steady_clock;
         auto last = clock::now();
 
+
+
         while (m_Running && !m_Window->ShouldClose())
         {
             auto now = clock::now();
@@ -40,7 +49,7 @@ namespace Engine
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
 
-            m_Renderer.RenderFrame();
+            m_Renderer.RenderFrame(*m_VertexBuffer);
 
             // crude temporary limiter so the console doesn't spam
             // std::this_thread::sleep_for(std::chrono::milliseconds(16));

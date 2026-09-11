@@ -4,15 +4,24 @@
 #include <optional>
 #include <cstdint>
 #include "Engine/Window.h"
+#include "Vertex.h"
 
 namespace Engine
 {
+    struct AllocatedBuffer
+    {
+        vk::raii::DeviceMemory memory;
+        vk::raii::Buffer buffer;
+    };
+
     class VulkanRenderer
     {
     public:
         void Init(const IWindow& window);
         void Shutdown();
-        void RenderFrame();
+        void RenderFrame(AllocatedBuffer& vertexBuffer);
+
+        AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
     private:
         void CreateInstance();
         void PickPhysicalDevice();
@@ -33,6 +42,7 @@ namespace Engine
         void EndFrame(uint32_t imageIndex);
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
+        uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
         const IWindow* m_Window = nullptr;
         vk::raii::Context  m_Context;

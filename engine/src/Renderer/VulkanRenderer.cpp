@@ -262,7 +262,7 @@ namespace Engine
         }
     }
 
-    void VulkanRenderer::RenderFrame()
+    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -293,6 +293,7 @@ namespace Engine
                 0.0f, 1.0f));
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
+            m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
             m_CommandBuffer->draw(3, 1, 0, 0); // Draw a triangle
 
             EndFrame(imageIndex);
@@ -301,6 +302,37 @@ namespace Engine
             RecreateSwapchain();
         }
 
+    }
+
+    uint32_t VulkanRenderer::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+    {
+        vk::PhysicalDeviceMemoryProperties memProperties = m_PhysicalDevice->getMemoryProperties();
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+        throw std::runtime_error("Failed to find suitable memory type!");
+    }
+
+    AllocatedBuffer VulkanRenderer::CreateVertexBuffer(const std::vector<Vertex>& vertices)
+    {
+        auto vertexBuffer = vk::raii::Buffer(*m_Device, vk::BufferCreateInfo(
+            {}, sizeof(Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer,
+            vk::SharingMode::eExclusive
+        ));
+        // Allocate memory for the vertex buffer
+        vk::MemoryRequirements memRequirements = vertexBuffer.getMemoryRequirements();
+        uint32_t memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        auto vertexBufferMemory = vk::raii::DeviceMemory(*m_Device, vk::MemoryAllocateInfo(
+            memRequirements.size, memoryTypeIndex
+        ));
+        vertexBuffer.bindMemory(*vertexBufferMemory, 0);
+        void* data = vertexBufferMemory.mapMemory(0, sizeof(Vertex) * vertices.size());
+        memcpy(data, vertices.data(), (size_t)(sizeof(Vertex) * vertices.size()));
+        vertexBufferMemory.unmapMemory();
+        return AllocatedBuffer{ std::move(vertexBufferMemory), std::move(vertexBuffer) };
     }
 
 
@@ -324,11 +356,12 @@ namespace Engine
         // ═══════════════════════════════════════════════════════════
         // 1. VERTEX INPUT - Describes vertex data format
         // ═══════════════════════════════════════════════════════════
-        // Empty for now - triangle vertices are hardcoded in the vertex shader
+        auto bindingDescription = Vertex::GetBindingDescription();
+        auto attributeDescriptions = Vertex::GetAttributeDescriptions();
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo(
             {},        // flags
-            0, nullptr, // vertexBindingDescriptions
-            0, nullptr  // vertexAttributeDescriptions
+            1, &bindingDescription, // vertexBindingDescriptions
+            static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data()  // vertexAttributeDescriptions
         );
         LOG_DEBUG("VulkanRenderer", "Vertex input state configured (no vertex data)");
 
