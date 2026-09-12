@@ -322,8 +322,11 @@ namespace Engine
             m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
             m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint16);
             
-            glm::mat4 mvp = m_ProjectionMatrix * viewMatrix * modelMatrix;
-            m_CommandBuffer->pushConstants<glm::mat4>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, mvp);
+            PushConstantData pushConstantData;
+            pushConstantData.projectionMatrix = m_ProjectionMatrix;
+            pushConstantData.viewMatrix = viewMatrix;
+            pushConstantData.modelMatrix = modelMatrix;
+            m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
             m_CommandBuffer->drawIndexed(indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
 
             EndFrame(imageIndex);
@@ -477,7 +480,7 @@ namespace Engine
             VK_FALSE,                         // rasterizerDiscardEnable
             vk::PolygonMode::eFill,          // polygonMode - fill triangles
             vk::CullModeFlagBits::eBack,     // cullMode - cull back faces
-            vk::FrontFace::eClockwise,       // frontFace
+            vk::FrontFace::eCounterClockwise,       // frontFace
             VK_FALSE,                         // depthBiasEnable
             0.0f,                             // depthBiasConstantFactor
             0.0f,                             // depthBiasClamp
@@ -546,7 +549,7 @@ namespace Engine
         auto pushConstantRange = vk::PushConstantRange(
             vk::ShaderStageFlagBits::eVertex, // stageFlags
             0,                                 // offset
-            static_cast<uint32_t>(sizeof(glm::mat4))                  // size
+            static_cast<uint32_t>(sizeof(glm::mat4) * 3)                  // size
         );
 
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo(

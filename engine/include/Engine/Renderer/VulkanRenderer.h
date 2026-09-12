@@ -24,6 +24,13 @@ namespace Engine
         vk::raii::ImageView imageView;
     };
 
+    struct PushConstantData
+    {
+        glm::mat4 projectionMatrix;
+        glm::mat4 viewMatrix;
+        glm::mat4 modelMatrix;
+    };
+
     class VulkanRenderer
     {
     public:
