@@ -13,11 +13,16 @@ namespace Engine
         m_Renderer.Init(*m_Window);
         // Temporary vertex buffer for hardcoded triangle vertices in the vertex shader
         std::vector<Vertex> vertices = {
-            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, 0.9f}, {1.0f, 1.0f, 0.0f}},
-            {{-0.2f, 0.5f}, {0.0f, 1.0f, 1.0f}}
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},  // 0
+            {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},  // 1
+            {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},  // 2
+            {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}},  // 3
         };
+
+        std::vector<uint16_t> indices = { 0, 1, 2,  2, 3, 0 };
+
         m_VertexBuffer = m_Renderer.CreateVertexBuffer(vertices);
+        m_IndexBuffer = m_Renderer.CreateIndexBuffer(indices);
     }
 
     Application::~Application()
@@ -49,7 +54,7 @@ namespace Engine
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
 
-            m_Renderer.RenderFrame(*m_VertexBuffer);
+            m_Renderer.RenderFrame(*m_VertexBuffer, *m_IndexBuffer);
 
             // crude temporary limiter so the console doesn't spam
             // std::this_thread::sleep_for(std::chrono::milliseconds(16));

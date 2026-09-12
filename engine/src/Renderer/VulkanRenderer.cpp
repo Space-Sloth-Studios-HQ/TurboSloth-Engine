@@ -262,7 +262,7 @@ namespace Engine
         }
     }
 
-    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer)
+    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -294,7 +294,8 @@ namespace Engine
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
             m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
-            m_CommandBuffer->draw(3, 1, 0, 0); // Draw a triangle
+            m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint16);
+            m_CommandBuffer->drawIndexed(indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
 
             EndFrame(imageIndex);
         } catch (const vk::OutOfDateKHRError& e) {
@@ -317,22 +318,31 @@ namespace Engine
 
     AllocatedBuffer VulkanRenderer::CreateVertexBuffer(const std::vector<Vertex>& vertices)
     {
-        auto vertexBuffer = vk::raii::Buffer(*m_Device, vk::BufferCreateInfo(
-            {}, sizeof(Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer,
+        return CreateBuffer(vertices.data(), sizeof(Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer, static_cast<uint32_t>(vertices.size()));
+    }
+
+    AllocatedBuffer VulkanRenderer::CreateIndexBuffer(const std::vector<uint16_t>& indices)
+    {
+        return CreateBuffer(indices.data(), sizeof(uint16_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
+    }
+
+    AllocatedBuffer VulkanRenderer::CreateBuffer(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, uint32_t indexCount) 
+    {
+        auto buffer = vk::raii::Buffer(*m_Device, vk::BufferCreateInfo(
+            {}, size, usage,
             vk::SharingMode::eExclusive
         ));
-        // Allocate memory for the vertex buffer
-        vk::MemoryRequirements memRequirements = vertexBuffer.getMemoryRequirements();
+        vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
         uint32_t memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        auto vertexBufferMemory = vk::raii::DeviceMemory(*m_Device, vk::MemoryAllocateInfo(
+        auto bufferMemory = vk::raii::DeviceMemory(*m_Device, vk::MemoryAllocateInfo(
             memRequirements.size, memoryTypeIndex
         ));
-        vertexBuffer.bindMemory(*vertexBufferMemory, 0);
-        void* data = vertexBufferMemory.mapMemory(0, sizeof(Vertex) * vertices.size());
-        memcpy(data, vertices.data(), (size_t)(sizeof(Vertex) * vertices.size()));
-        vertexBufferMemory.unmapMemory();
-        return AllocatedBuffer{ std::move(vertexBufferMemory), std::move(vertexBuffer) };
+        buffer.bindMemory(*bufferMemory, 0);
+        void* mappedData = bufferMemory.mapMemory(0, size);
+        memcpy(mappedData, data, (size_t)size);
+        bufferMemory.unmapMemory();
+        return AllocatedBuffer{ std::move(bufferMemory), std::move(buffer), indexCount };
     }
 
 

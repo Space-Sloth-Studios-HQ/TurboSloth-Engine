@@ -12,6 +12,7 @@ namespace Engine
     {
         vk::raii::DeviceMemory memory;
         vk::raii::Buffer buffer;
+        uint32_t indexCount;
     };
 
     class VulkanRenderer
@@ -19,9 +20,10 @@ namespace Engine
     public:
         void Init(const IWindow& window);
         void Shutdown();
-        void RenderFrame(AllocatedBuffer& vertexBuffer);
+        void RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer);
 
         AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
+        AllocatedBuffer CreateIndexBuffer(const std::vector<uint16_t>& indices);
     private:
         void CreateInstance();
         void PickPhysicalDevice();
@@ -43,6 +45,7 @@ namespace Engine
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
         uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+        AllocatedBuffer CreateBuffer(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, uint32_t indexCount);
 
         const IWindow* m_Window = nullptr;
         vk::raii::Context  m_Context;
