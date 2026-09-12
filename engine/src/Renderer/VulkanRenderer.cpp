@@ -1,6 +1,7 @@
 #include "Engine/Renderer/VulkanRenderer.h"
 #include "Engine/WindowVulkan.h"
 #include "Engine/Logging/Logger.h"
+#include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 #include <vector>
@@ -193,9 +194,26 @@ namespace Engine
             1                                 // layerCount
         };
 
+        vk::ImageMemoryBarrier2 toDepthAttachment{};
+        toDepthAttachment.srcStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests;
+        toDepthAttachment.srcAccessMask = {};
+        toDepthAttachment.dstStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests;
+        toDepthAttachment.dstAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
+        toDepthAttachment.oldLayout = vk::ImageLayout::eUndefined;
+        toDepthAttachment.newLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+        toDepthAttachment.image = *m_DepthBuffer->image;
+        toDepthAttachment.subresourceRange = {
+            vk::ImageAspectFlagBits::eDepth, // aspectMask
+            0,                                // baseMipLevel
+            1,                                // levelCount
+            0,                                // baseArrayLayer
+            1                                 // layerCount
+        };
+
         vk::DependencyInfo dependencyInfo{};
-        dependencyInfo.imageMemoryBarrierCount = 1;
-        dependencyInfo.pImageMemoryBarriers = &toColorAttachment;
+        dependencyInfo.imageMemoryBarrierCount = 2;
+        vk::ImageMemoryBarrier2 imageBarriers[] = { toColorAttachment, toDepthAttachment };
+        dependencyInfo.pImageMemoryBarriers = imageBarriers;
 
         m_CommandBuffer->pipelineBarrier2(dependencyInfo);
 
@@ -208,11 +226,19 @@ namespace Engine
         colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
         colorAttachment.clearValue = clearColor;
 
+        vk::RenderingAttachmentInfo depthAttachment{};
+        depthAttachment.imageView = *m_DepthBuffer->imageView;
+        depthAttachment.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+        depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+        depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+        depthAttachment.clearValue = vk::ClearValue().setDepthStencil({1.0f, 0});
+
         vk::RenderingInfo renderingInfo{};
         renderingInfo.renderArea = vk::Rect2D({0,0}, m_SwapchainExtent);
         renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments = &colorAttachment;
+        renderingInfo.pDepthAttachment = &depthAttachment;
 
         m_CommandBuffer->beginRendering(renderingInfo);
     }
@@ -262,7 +288,7 @@ namespace Engine
         }
     }
 
-    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer)
+    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -295,6 +321,9 @@ namespace Engine
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
             m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
             m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint16);
+            
+            glm::mat4 mvp = m_ProjectionMatrix * viewMatrix * modelMatrix;
+            m_CommandBuffer->pushConstants<glm::mat4>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, mvp);
             m_CommandBuffer->drawIndexed(indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
 
             EndFrame(imageIndex);
@@ -326,6 +355,47 @@ namespace Engine
         return CreateBuffer(indices.data(), sizeof(uint16_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
     }
 
+    AllocatedImage VulkanRenderer::CreateDepthBuffer()
+    {
+        auto image = vk::raii::Image(*m_Device, vk::ImageCreateInfo(
+            {},
+            vk::ImageType::e2D,
+            m_DepthFormat,
+            vk::Extent3D{ m_SwapchainExtent.width, m_SwapchainExtent.height, 1 },
+            1,
+            1,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eDepthStencilAttachment,
+            vk::SharingMode::eExclusive,
+            0,
+            nullptr,
+            vk::ImageLayout::eUndefined
+        ));
+        vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
+        uint32_t memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
+            vk::MemoryPropertyFlagBits::eDeviceLocal);
+        auto imageMemory = vk::raii::DeviceMemory(*m_Device, vk::MemoryAllocateInfo(
+            memRequirements.size, memoryTypeIndex
+        ));
+        image.bindMemory(*imageMemory, 0);
+        vk::ImageViewCreateInfo viewInfo(
+            {},
+            *image,
+            vk::ImageViewType::e2D,
+            m_DepthFormat,
+            {},
+            vk::ImageSubresourceRange(
+                vk::ImageAspectFlagBits::eDepth,
+                0, 1,
+                0, 1
+            )
+        );
+        auto imageView = vk::raii::ImageView(*m_Device, viewInfo);
+
+        return AllocatedImage{ std::move(imageMemory), std::move(image), std::move(imageView) };
+    }
+
     AllocatedBuffer VulkanRenderer::CreateBuffer(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, uint32_t indexCount) 
     {
         auto buffer = vk::raii::Buffer(*m_Device, vk::BufferCreateInfo(
@@ -348,6 +418,8 @@ namespace Engine
 
     void VulkanRenderer::CreateGraphicsPipeline()
     {
+        // You'll need a new graphics pipeline for every shader
+
         // ═══════════════════════════════════════════════════════════
         // SHADER STAGES
         // ═══════════════════════════════════════════════════════════
@@ -471,10 +543,16 @@ namespace Engine
         // ═══════════════════════════════════════════════════════════
         // 9. PIPELINE LAYOUT - Describes shader resource bindings (uniforms, etc.)
         // ═══════════════════════════════════════════════════════════
+        auto pushConstantRange = vk::PushConstantRange(
+            vk::ShaderStageFlagBits::eVertex, // stageFlags
+            0,                                 // offset
+            static_cast<uint32_t>(sizeof(glm::mat4))                  // size
+        );
+
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
             {},         // flags
             0, nullptr, // setLayoutCount, pSetLayouts (descriptor sets)
-            0, nullptr  // pushConstantRangeCount, pPushConstantRanges
+            1, &pushConstantRange // pushConstantRangeCount, pPushConstantRanges
         );
         m_PipelineLayout = vk::raii::PipelineLayout(m_Device.value(), pipelineLayoutInfo);
         LOG_DEBUG("VulkanRenderer", "Pipeline layout created");
@@ -486,10 +564,19 @@ namespace Engine
         vk::PipelineRenderingCreateInfo renderingInfo(
             {},                           // flags
             1, &colorFormat,             // viewMask, colorAttachmentCount, pColorAttachmentFormats
-            vk::Format::eUndefined,      // depthAttachmentFormat
+            m_DepthFormat,      // depthAttachmentFormat
             vk::Format::eUndefined       // stencilAttachmentFormat
         );
         LOG_DEBUG("VulkanRenderer", "Dynamic rendering info configured");
+
+        vk::PipelineDepthStencilStateCreateInfo depthStencilInfo(
+            {},                          // flags
+            VK_TRUE,                     // depthTestEnable
+            VK_TRUE,                     // depthWriteEnable
+            vk::CompareOp::eLess,        // depthCompareOp
+            VK_FALSE,                    // depthBoundsTestEnable
+            VK_FALSE                     // stencilTestEnable
+        );
 
         // ═══════════════════════════════════════════════════════════
         // FINAL ASSEMBLY - Bundle everything into the graphics pipeline
@@ -503,7 +590,7 @@ namespace Engine
             &viewportState,             // pViewportState
             &rasterizer,                // pRasterizationState
             &multisampling,             // pMultisampleState
-            nullptr,                     // pDepthStencilState (not using depth)
+            &depthStencilInfo,           // pDepthStencilState (using depth)
             &colorBlending,             // pColorBlendState
             &dynamicState,              // pDynamicState
             *m_PipelineLayout,          // layout
@@ -604,6 +691,9 @@ namespace Engine
         );
         m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, m_Window->GetWidth(), m_Window->GetHeight());
         LOG_DEBUG("VulkanRenderer", "\tChosen swapchain extent: {}x{}", m_SwapchainExtent.width, m_SwapchainExtent.height);
+        m_DepthBuffer = CreateDepthBuffer();
+        m_ProjectionMatrix = glm::perspective(glm::radians(45.0f), static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height), 0.1f, 100.0f);
+        m_ProjectionMatrix[1][1] *= -1; // Invert Y for Vulkan's coordinate system
 
         uint32_t minImageCount = (surfaceCapabilities.maxImageCount > 0) 
             ? std::min(surfaceCapabilities.maxImageCount, std::max(surfaceCapabilities.minImageCount + 1, 2u)) 
@@ -655,6 +745,9 @@ namespace Engine
 
         auto surfaceCapabilities = m_PhysicalDevice->getSurfaceCapabilitiesKHR(*m_Surface);
         m_SwapchainExtent = ChooseSwapExtent(surfaceCapabilities, m_Window->GetWidth(), m_Window->GetHeight());
+        m_DepthBuffer = CreateDepthBuffer();
+        m_ProjectionMatrix = glm::perspective(glm::radians(45.0f), static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height), 0.1f, 100.0f);
+        m_ProjectionMatrix[1][1] *= -1; // Invert Y for Vulkan's coordinate system
         if (m_SwapchainExtent.width == 0 || m_SwapchainExtent.height == 0)
         {
             LOG_DEBUG("VulkanRenderer", "Swapchain extent is zero, waiting for window to be resized...");
@@ -831,6 +924,28 @@ namespace Engine
                 return false;
             }
             LOG_INFO("VulkanRenderer", "  ✓ Supports shaderDrawParameters");
+
+            // Select a suitable depth format
+            std::vector<vk::Format> depthFormats = {
+                vk::Format::eD32Sfloat,
+                // vk::Format::eD32SfloatS8Uint,
+                // vk::Format::eD24UnormS8Uint
+            };
+            for (auto format : depthFormats)
+            {
+                vk::FormatProperties props = device.getFormatProperties(format);
+                if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+                {
+                    m_DepthFormat = format;
+                    break;
+                }
+            }
+            if (m_DepthFormat == vk::Format{})
+            {
+                LOG_WARN("VulkanRenderer", "  ❌ No suitable depth format found");
+                return false;
+            }
+            LOG_INFO("VulkanRenderer", "  ✓ Selected depth format: {}", vk::to_string(m_DepthFormat));
             
             return true;
         };

@@ -5,6 +5,7 @@
 #include <memory>
 #include "Engine/Window.h"
 #include "Engine/Renderer/VulkanRenderer.h"
+#include "Engine/Renderer/Camera.h"
 
 namespace Engine
 {
@@ -34,6 +35,7 @@ namespace Engine
 
         std::optional<AllocatedBuffer> m_VertexBuffer;
         std::optional<AllocatedBuffer> m_IndexBuffer;
+        std::optional<Camera> m_Camera;
 
         std::vector<std::unique_ptr<Layer>> m_Layers;
     public:

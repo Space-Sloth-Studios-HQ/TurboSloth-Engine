@@ -6,7 +6,7 @@
 namespace Engine {
 class Vertex {
 public:
-    glm::vec2 position;
+    glm::vec3 position;
     glm::vec3 color;
     // glm::vec2 texCoord;
 
@@ -24,7 +24,7 @@ public:
         attributeDescriptions[0] = vk::VertexInputAttributeDescription(
             0,                          // location
             0,                          // binding
-            vk::Format::eR32G32Sfloat,  // format
+            vk::Format::eR32G32B32Sfloat,  // format
             offsetof(Vertex, position)  // offset
         );
         attributeDescriptions[1] = vk::VertexInputAttributeDescription(

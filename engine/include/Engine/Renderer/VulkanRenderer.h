@@ -1,6 +1,8 @@
 #pragma once
 #include <vulkan/vulkan_raii.hpp>
 #include <vector>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
+#include <glm/glm.hpp>
 #include <optional>
 #include <cstdint>
 #include "Engine/Window.h"
@@ -15,12 +17,19 @@ namespace Engine
         uint32_t indexCount;
     };
 
+    struct AllocatedImage
+    {
+        vk::raii::DeviceMemory memory;
+        vk::raii::Image image;
+        vk::raii::ImageView imageView;
+    };
+
     class VulkanRenderer
     {
     public:
         void Init(const IWindow& window);
         void Shutdown();
-        void RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer);
+        void RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
 
         AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
         AllocatedBuffer CreateIndexBuffer(const std::vector<uint16_t>& indices);
@@ -45,7 +54,9 @@ namespace Engine
         vk::raii::ShaderModule CreateShaderModule(const std::vector<char>& code);
         uint32_t FindGraphicsQueueFamilyIdx(vk::raii::PhysicalDevice);
         uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+
         AllocatedBuffer CreateBuffer(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, uint32_t indexCount);
+        AllocatedImage  CreateDepthBuffer();
 
         const IWindow* m_Window = nullptr;
         vk::raii::Context  m_Context;
@@ -81,6 +92,10 @@ namespace Engine
         std::optional<vk::raii::Queue> m_PresentQueue;
         bool m_SubOptimal = false;
 
+        // Depth buffer resources
+        vk::Format m_DepthFormat;
+        std::optional<AllocatedImage> m_DepthBuffer;
+
         // Intended for use when setting up Vulkan validation layers in instance creation.
         std::vector<char const*> m_ValidationLayers = {
             "VK_LAYER_KHRONOS_validation"
@@ -96,5 +111,7 @@ namespace Engine
         };
 
         std::vector<const char*> m_EnabledDeviceExtensions;
+
+        glm::mat4 m_ProjectionMatrix;
     };
 }

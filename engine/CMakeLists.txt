@@ -5,6 +5,8 @@ add_library(KHEngine STATIC
   src/Platform/GLFW/GLFWWindow.cpp
   src/Platform/GLFW/WindowVulkan.cpp
   src/Renderer/VulkanRenderer.cpp
+  include/Engine/Renderer/Camera.h
+  src/Renderer/Camera.cpp
 )
 
 # Public headers are under engine/include
@@ -108,6 +110,7 @@ function(compile_slang_shader SHADER_SOURCE)
       -target spirv
       -profile spirv_1_5
       -emit-spirv-directly
+      -matrix-layout-column-major
       -stage vertex
       -entry vertMain
       -fvk-use-entrypoint-name
@@ -125,6 +128,7 @@ function(compile_slang_shader SHADER_SOURCE)
       -target spirv
       -profile spirv_1_5
       -emit-spirv-directly
+      -matrix-layout-column-major
       -stage fragment
       -entry fragMain
       -fvk-use-entrypoint-name
