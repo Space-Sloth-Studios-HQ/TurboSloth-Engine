@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include "Engine/Input/InputState.h"
 
 namespace Engine {
 class Camera {
@@ -8,9 +9,10 @@ public:
     Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch);
 
     glm::mat4 GetViewMatrix() const;
+    void OnUpdate(float deltaTime, const Input::InputState& inputState);
 
 private:
-    void UpdateCameraVectors();
+    void UpdateCameraVectors(int deltaX, int deltaY);
 
     glm::vec3 m_Position;
     glm::vec3 m_Front;
@@ -20,5 +22,10 @@ private:
 
     float m_Yaw;
     float m_Pitch;
+
+    bool m_FirstMouse = true;
+    double m_LastMouseX = 0;
+    double m_LastMouseY = 0;
+    double m_MouseSensitivity = 0.1f;
 };
 } // namespace Engine

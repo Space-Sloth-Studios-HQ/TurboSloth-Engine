@@ -7,6 +7,8 @@ add_library(KHEngine STATIC
   src/Renderer/VulkanRenderer.cpp
   include/Engine/Renderer/Camera.h
   src/Renderer/Camera.cpp
+  include/Engine/Input/InputState.h
+  include/Engine/Input/Key.h
 )
 
 # Public headers are under engine/include

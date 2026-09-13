@@ -91,13 +91,17 @@ namespace Engine
             last = now;
 
             m_Window->PollEvents();
+            Input::InputState inputState = m_Window->ReadInput();
 
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
 
+            // TODO: Should be a dedicated entity.OnUpdate(dt) call instead of directly manipulating the model matrix here
             glm::vec3 rotationAxis = glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f));
             glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), totalTime * cubeRotationSpeed, rotationAxis);
             LOG_INFO("Engine", "Model matrix: {}", glm::to_string(modelMatrix));
+
+            m_Camera->OnUpdate(dt, inputState);
 
             m_Renderer.RenderFrame(*m_VertexBuffer, *m_IndexBuffer, m_Camera->GetViewMatrix(), modelMatrix);
 

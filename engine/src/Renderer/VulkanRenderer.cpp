@@ -1020,6 +1020,17 @@ namespace Engine
         extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         vk::InstanceCreateInfo instanceCreateInfo;
+        std::array<vk::ValidationFeatureEnableEXT, 1> validationFeaturesArray {
+            vk::ValidationFeatureEnableEXT::eSynchronizationValidation
+        };
+
+        vk::ValidationFeaturesEXT validationFeatures = vk::ValidationFeaturesEXT(
+            static_cast<uint32_t>(validationFeaturesArray.size()),
+            validationFeaturesArray.data(),
+            0,
+            nullptr,
+            nullptr
+        );
 
         // Add debug utils extension on Debug builds
         if (enableValidationLayers)
@@ -1037,18 +1048,6 @@ namespace Engine
                     throw std::runtime_error("Required validation layer not supported: " + std::string(layerName));
                 }
             }
-
-            std::array<vk::ValidationFeatureEnableEXT, 1> validationFeaturesArray {
-                vk::ValidationFeatureEnableEXT::eSynchronizationValidation
-            };
-
-            vk::ValidationFeaturesEXT validationFeatures = vk::ValidationFeaturesEXT(
-                static_cast<uint32_t>(validationFeaturesArray.size()),
-                validationFeaturesArray.data(),
-                0,
-                nullptr,
-                nullptr
-            );
 
             instanceCreateInfo = vk::InstanceCreateInfo(
                 vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,  // flags - required for MoltenVK
@@ -1071,7 +1070,6 @@ namespace Engine
                 extensions.data()                             // enabled extension names
             );
         }
-
 
         // Create the Vulkan instance
         m_Instance = vk::raii::Instance(m_Context, instanceCreateInfo);
