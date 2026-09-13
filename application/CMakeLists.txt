@@ -13,7 +13,7 @@ endif()
 # Nice output name
 set_target_properties(KHApp PROPERTIES OUTPUT_NAME "khclone")
 
-target_link_libraries(KHApp PRIVATE KHEngine)
+target_link_libraries(KHApp PRIVATE MomoEngine)
 # Convenience target: build, then run from the binary dir so the relative
 # "shaders/*.spv" paths in VulkanRenderer resolve.
 #   cmake --build build/clang-debug --target run

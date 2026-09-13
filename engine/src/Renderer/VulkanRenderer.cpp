@@ -1,6 +1,6 @@
-#include "Engine/Renderer/VulkanRenderer.h"
-#include "Engine/WindowVulkan.h"
-#include "Engine/Logging/Logger.h"
+#include "Momo/Renderer/VulkanRenderer.h"
+#include "Momo/WindowVulkan.h"
+#include "Momo/Logging/Logger.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
@@ -132,7 +132,7 @@ namespace
     }
 }
 
-namespace Engine
+namespace Momo
 {
     void VulkanRenderer::Init(const IWindow& window)
     {
@@ -992,16 +992,16 @@ namespace Engine
     {
         LOG_INFO("VulkanRenderer", "Creating Vulkan instance...");
         vk::ApplicationInfo appInfo(
-            "Engine",                      // pApplicationName
+            "KHClone",                      // pApplicationName
             VK_MAKE_VERSION(1, 0, 0),     // applicationVersion
-            "No Engine",                   // pEngineName
+            "Momo Engine",                   // pEngineName
             VK_MAKE_VERSION(1, 0, 0),     // engineVersion
             vk::ApiVersion14              // apiVersion
         );
 
         // Get required extensions from GLFW
         std::vector<const char*> extensions;
-        Engine::WindowVulkan::GetRequiredVulkanExtensions(*m_Window, extensions);
+        Momo::WindowVulkan::GetRequiredVulkanExtensions(*m_Window, extensions);
 
         // Check if the required GLFW extensions are supported by Vulkan implementation
         auto extensionProperties = m_Context.enumerateInstanceExtensionProperties();

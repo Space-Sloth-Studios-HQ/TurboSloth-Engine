@@ -3,12 +3,12 @@
 #include <vector>
 #include <utility>
 #include <memory>
-#include "Engine/Window.h"
-#include "Engine/Renderer/VulkanRenderer.h"
-#include "Engine/Renderer/Camera.h"
-#include "Engine/Input/InputState.h"
+#include "Momo/Window.h"
+#include "Momo/Renderer/VulkanRenderer.h"
+#include "Momo/Renderer/Camera.h"
+#include "Momo/Input/InputState.h"
 
-namespace Engine
+namespace Momo
 {
     struct ApplicationSpecification
     {

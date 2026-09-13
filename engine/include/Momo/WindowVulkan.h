@@ -1,9 +1,9 @@
 #pragma once
-#include "Engine/Window.h"
+#include "Momo/Window.h"
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace Engine::WindowVulkan
+namespace Momo::WindowVulkan
 {
     void GetRequiredVulkanExtensions(const IWindow& window, std::vector<const char*>& extensions);
 }

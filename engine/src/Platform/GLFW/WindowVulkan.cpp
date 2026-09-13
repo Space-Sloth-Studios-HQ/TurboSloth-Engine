@@ -1,8 +1,8 @@
-#include "Engine/WindowVulkan.h"
+#include "Momo/WindowVulkan.h"
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 
-namespace Engine::WindowVulkan
+namespace Momo::WindowVulkan
 {
     void GetRequiredVulkanExtensions(const IWindow& window, std::vector<const char*>& extensions)
     {

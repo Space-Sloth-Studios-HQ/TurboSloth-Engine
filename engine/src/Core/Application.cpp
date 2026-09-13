@@ -1,16 +1,16 @@
-#include "Engine/Core/Application.h"
+#include "Momo/Core/Application.h"
 #include <chrono>
-#include <Engine/Logging/Logger.h>
+#include <Momo/Logging/Logger.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
-namespace Engine
+namespace Momo
 {
     Application::Application(const ApplicationSpecification& spec)
         : m_Spec(spec)
     {
-        LOG_INFO("Engine", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
+        LOG_INFO("Momo", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
 
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
@@ -68,7 +68,7 @@ namespace Engine
         // Ensure shutdown is called even if the user forgot
         if (!m_IsShutdown)
         {
-            LOG_WARN("Engine", "Shutdown() was not called explicitly. Calling now...");
+            LOG_WARN("Momo", "Shutdown() was not called explicitly. Calling now...");
             
             Shutdown();
         }
@@ -87,7 +87,7 @@ namespace Engine
             auto now = clock::now();
             float dt = std::chrono::duration<float>(now - last).count();
             float totalTime = std::chrono::duration<float>(now.time_since_epoch()).count();
-            LOG_INFO("Engine", "Frame time: {}", dt);
+            LOG_INFO("Momo", "Frame time: {}", dt);
             last = now;
 
             m_Window->PollEvents();
@@ -99,7 +99,7 @@ namespace Engine
             // TODO: Should be a dedicated entity.OnUpdate(dt) call instead of directly manipulating the model matrix here
             glm::vec3 rotationAxis = glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f));
             glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), totalTime * cubeRotationSpeed, rotationAxis);
-            LOG_INFO("Engine", "Model matrix: {}", glm::to_string(modelMatrix));
+            LOG_INFO("Momo", "Model matrix: {}", glm::to_string(modelMatrix));
 
             m_Camera->OnUpdate(dt, inputState);
 
@@ -114,11 +114,11 @@ namespace Engine
     {
         if (m_IsShutdown)
         {
-            LOG_WARN("Engine", "Shutdown() called multiple times. Ignoring...");
+            LOG_WARN("Momo", "Shutdown() called multiple times. Ignoring...");
             return;
         }
 
-        LOG_INFO("Engine", "Shutting down...");
+        LOG_INFO("Momo", "Shutting down...");
 
         // Shutdown renderer first (destroys Vulkan instance before GLFW terminates)
         m_Renderer.Shutdown();
@@ -130,6 +130,6 @@ namespace Engine
         }
 
         m_IsShutdown = true;
-        LOG_INFO("Engine", "Shutdown complete.");
+        LOG_INFO("Momo", "Shutdown complete.");
     }
 }

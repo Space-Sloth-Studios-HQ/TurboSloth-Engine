@@ -5,10 +5,10 @@
 #include <glm/glm.hpp>
 #include <optional>
 #include <cstdint>
-#include "Engine/Window.h"
+#include "Momo/Window.h"
 #include "Vertex.h"
 
-namespace Engine
+namespace Momo
 {
     struct AllocatedBuffer
     {

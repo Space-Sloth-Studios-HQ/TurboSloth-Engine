@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Engine {
+namespace Momo {
 namespace Input {
 enum Key {
     W,
@@ -16,4 +16,4 @@ enum Key {
 
 inline constexpr size_t KeyCount = static_cast<size_t>(Key::Count);
 } // namespace Input
-} // namespace Engine
+} // namespace Momo

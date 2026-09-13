@@ -1,12 +1,12 @@
-#include "Engine/Window.h"
+#include "Momo/Window.h"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
-#include "Engine/Input/InputState.h"
-#include "Engine/Logging/Logger.h"
+#include "Momo/Input/InputState.h"
+#include "Momo/Logging/Logger.h"
 
 #include <GLFW/glfw3.h>
-namespace Engine
+namespace Momo
 {
     class GLFWWindow : public IWindow {
     public:

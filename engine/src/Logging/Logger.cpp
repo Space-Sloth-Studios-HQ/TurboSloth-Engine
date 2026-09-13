@@ -1,7 +1,7 @@
-#include "Engine/Logging/Logger.h"
+#include "Momo/Logging/Logger.h"
 #include <iostream>
 
-namespace Engine
+namespace Momo
 {
     // Initialize static mutex
     std::mutex Logger::s_Mutex;

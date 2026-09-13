@@ -1,18 +1,18 @@
 # Build the engine as a static lib
-add_library(KHEngine STATIC
+add_library(MomoEngine STATIC
   src/Core/Application.cpp
   src/Logging/Logger.cpp
   src/Platform/GLFW/GLFWWindow.cpp
   src/Platform/GLFW/WindowVulkan.cpp
   src/Renderer/VulkanRenderer.cpp
-  include/Engine/Renderer/Camera.h
+  include/Momo/Renderer/Camera.h
   src/Renderer/Camera.cpp
-  include/Engine/Input/InputState.h
-  include/Engine/Input/Key.h
+  include/Momo/Input/InputState.h
+  include/Momo/Input/Key.h
 )
 
 # Public headers are under engine/include
-target_include_directories(KHEngine
+target_include_directories(MomoEngine
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -27,7 +27,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-# target_compile_definitions(KHEngine PRIVATE glfw)
+# target_compile_definitions(MomoEngine PRIVATE glfw)
 
 # ----------- Vulkan SDK / Loader -----------------
 # Help FindVulkan on Windows if VULKAN_SDK is set
@@ -45,7 +45,7 @@ find_package(Vulkan REQUIRED)
 # Link the Vulkan loader and GLFW
 # Use Vulkan::Vulkan to be cross-platform (Win: vulkan-1.lib, Linux: libvulkan.so, macOS: MoltenVK dylib)
 # Vulkan is PUBLIC because VulkanRenderer.h is included in public headers (Application.h)
-target_link_libraries(KHEngine
+target_link_libraries(MomoEngine
   PUBLIC
     Vulkan::Vulkan
   PRIVATE
@@ -54,25 +54,25 @@ target_link_libraries(KHEngine
 
 # If your GLFW code includes <GLFW/glfw3.h> and you want it to include <vulkan/vulkan.h> for you:
 # You can define this globally for the engine sources:
-target_compile_definitions(KHEngine PRIVATE GLFW_INCLUDE_VULKAN)
+target_compile_definitions(MomoEngine PRIVATE GLFW_INCLUDE_VULKAN)
 
 message(STATUS "Vulkan include: ${Vulkan_INCLUDE_DIRS}")
 message(STATUS "Vulkan libs: ${Vulkan_LIBRARIES}")
 
 # Windows-friendly defines (avoid <windows.h> min/max macro conflicts if you include it later)
 if (WIN32)
-  target_compile_definitions(KHEngine PRIVATE NOMINMAX)
+  target_compile_definitions(MomoEngine PRIVATE NOMINMAX)
 endif()
 
 # Warnings
 if (MSVC)
-  target_compile_options(KHEngine PRIVATE /W4 /permissive-)
+  target_compile_options(MomoEngine PRIVATE /W4 /permissive-)
 else()
-  target_compile_options(KHEngine PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(MomoEngine PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # (Add dependencies here later, e.g., glfw/volk)
-# target_link_libraries(KHEngine PUBLIC glfw volk)
+# target_link_libraries(MomoEngine PUBLIC glfw volk)
 
 # ----------- Shader Compilation with Slang -----------------
 # Find slangc compiler (from Vulkan SDK or system PATH)
@@ -150,13 +150,13 @@ set(COMPILED_SHADERS "")
 compile_slang_shader(${SHADER_SOURCE_DIR}/common/triangle.slang)
 
 # Create custom target for all shaders
-add_custom_target(EngineShaders ALL
+add_custom_target(MomoShaders ALL
   DEPENDS ${COMPILED_SHADERS}
   COMMENT "Building engine shaders"
 )
 
 # Make the engine depend on shaders being built
-add_dependencies(KHEngine EngineShaders)
+add_dependencies(MomoEngine MomoShaders)
 
 # Install shaders to output directory (optional, for deployment)
 install(DIRECTORY ${SHADER_OUTPUT_DIR}/

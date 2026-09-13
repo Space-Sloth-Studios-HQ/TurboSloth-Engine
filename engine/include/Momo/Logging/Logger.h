@@ -4,7 +4,7 @@
 #include <format>
 #include <mutex>
 
-namespace Engine
+namespace Momo
 {
     enum class LogLevel
     {
@@ -39,9 +39,9 @@ namespace Engine
 }
 
 // Convenience macros for logging
-#define LOG_TRACE(component, ...) ::Engine::Logger::Log(::Engine::LogLevel::Trace, component, __VA_ARGS__)
-#define LOG_DEBUG(component, ...) ::Engine::Logger::Log(::Engine::LogLevel::Debug, component, __VA_ARGS__)
-#define LOG_INFO(component, ...)  ::Engine::Logger::Log(::Engine::LogLevel::Info, component, __VA_ARGS__)
-#define LOG_WARN(component, ...)  ::Engine::Logger::Log(::Engine::LogLevel::Warning, component, __VA_ARGS__)
-#define LOG_ERROR(component, ...) ::Engine::Logger::Log(::Engine::LogLevel::Error, component, __VA_ARGS__)
-#define LOG_FATAL(component, ...) ::Engine::Logger::Log(::Engine::LogLevel::Fatal, component, __VA_ARGS__)
+#define LOG_TRACE(component, ...) ::Momo::Logger::Log(::Momo::LogLevel::Trace, component, __VA_ARGS__)
+#define LOG_DEBUG(component, ...) ::Momo::Logger::Log(::Momo::LogLevel::Debug, component, __VA_ARGS__)
+#define LOG_INFO(component, ...)  ::Momo::Logger::Log(::Momo::LogLevel::Info, component, __VA_ARGS__)
+#define LOG_WARN(component, ...)  ::Momo::Logger::Log(::Momo::LogLevel::Warning, component, __VA_ARGS__)
+#define LOG_ERROR(component, ...) ::Momo::Logger::Log(::Momo::LogLevel::Error, component, __VA_ARGS__)
+#define LOG_FATAL(component, ...) ::Momo::Logger::Log(::Momo::LogLevel::Fatal, component, __VA_ARGS__)

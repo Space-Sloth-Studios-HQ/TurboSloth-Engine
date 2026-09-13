@@ -1,9 +1,9 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include "Engine/Input/InputState.h"
+#include "Momo/Input/InputState.h"
 
-namespace Engine {
+namespace Momo {
 class Camera {
 public:
     Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch);
@@ -28,4 +28,4 @@ private:
     double m_LastMouseY = 0;
     double m_MouseSensitivity = 0.1f;
 };
-} // namespace Engine
+} // namespace Momo

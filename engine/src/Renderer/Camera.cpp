@@ -1,8 +1,8 @@
-#include "Engine/Renderer/Camera.h"
-#include "Engine/Logging/Logger.h"
+#include "Momo/Renderer/Camera.h"
+#include "Momo/Logging/Logger.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace Engine {
+namespace Momo {
 Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
     : m_Position(position), m_WorldUp(up), m_Yaw(yaw), m_Pitch(pitch), m_Front(glm::vec3(0.0f, 0.0f, -1.0f)), m_FirstMouse(true) {
     UpdateCameraVectors(0, 0);
@@ -56,4 +56,4 @@ void Camera::UpdateCameraVectors(int deltaX, int deltaY) {
               m_Right.x, m_Right.y, m_Right.z,
               m_Up.x, m_Up.y, m_Up.z, deltaX, deltaY);
 }
-} // namespace Engine
+} // namespace Momo

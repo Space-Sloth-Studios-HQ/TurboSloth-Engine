@@ -1,4 +1,4 @@
-# TurboSloth-Engine
+# Momo Engine
 
 A modern game engine built with Vulkan and C++20, featuring cross-platform support via MoltenVK on macOS.
 
@@ -126,33 +126,9 @@ After building, run the application:
 
 You should see output similar to:
 ```
-[Engine] Starting 'KHClone' (1920x1080)
+[Momo] Starting 'KHClone' (1920x1080)
 [VulkanRenderer] Creating Vulkan instance...
 [AppLayer] Attached to application.
-```
-
-## Project Structure
-
-```
-TurboSloth-Engine/
-├── CMakeLists.txt           # Root CMake configuration
-├── CmakePresets.json        # CMake build presets
-├── engine/                  # Engine library
-│   ├── CMakeLists.txt
-│   ├── include/             # Public headers
-│   │   └── Engine/
-│   │       ├── Core/
-│   │       ├── Platform/
-│   │       └── Renderer/
-│   └── src/                 # Engine implementation
-│       ├── Core/
-│       ├── Platform/
-│       │   └── GLFW/
-│       └── Renderer/
-└── application/             # Application executable
-    ├── CMakeLists.txt
-    └── src/
-        └── main.cpp         # Application entry point
 ```
 
 ## Technology Stack
@@ -170,7 +146,7 @@ TurboSloth-Engine/
 The engine uses a layer-based architecture. To create a new layer:
 
 ```cpp
-class MyLayer : public Engine::Layer
+class MyLayer : public Momo::Layer
 {
 public:
     void OnAttach() override

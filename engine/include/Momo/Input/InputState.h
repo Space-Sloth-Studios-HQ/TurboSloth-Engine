@@ -4,7 +4,7 @@
 #include "Key.h"
 
 
-namespace Engine
+namespace Momo
 {
 namespace Input {
 
@@ -84,4 +84,4 @@ private:
 };
 
 } // namespace Input
-} // namespace Engine
+} // namespace Momo

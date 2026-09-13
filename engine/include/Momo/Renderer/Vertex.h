@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-namespace Engine {
+namespace Momo {
 class Vertex {
 public:
     glm::vec3 position;
@@ -43,4 +43,4 @@ public:
         return attributeDescriptions;
     }
 };
-} // namespace Engine
+} // namespace Momo

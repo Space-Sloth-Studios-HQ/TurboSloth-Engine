@@ -1,7 +1,7 @@
-#include <Engine/Core/Application.h>
-#include <Engine/Logging/Logger.h>
+#include <Momo/Core/Application.h>
+#include <Momo/Logging/Logger.h>
 
-class AppLayer : public Engine::Layer
+class AppLayer : public Momo::Layer
 {
 public:
     void OnAttach() override
@@ -17,12 +17,12 @@ public:
 
 int main()
 {
-    Engine::ApplicationSpecification appSpec;
+    Momo::ApplicationSpecification appSpec;
     appSpec.Name = "KHClone";
     appSpec.WindowSpec.Width = 1920;
     appSpec.WindowSpec.Height = 1080;
 
-    Engine::Application app(appSpec);
+    Momo::Application app(appSpec);
     app.PushLayer<AppLayer>();
     app.Run();
 

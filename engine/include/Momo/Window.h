@@ -1,12 +1,12 @@
 #pragma once
 #include <string>
 #include <cstdint>
-#include "Engine/Input/InputState.h"
+#include "Momo/Input/InputState.h"
 
-namespace Engine
+namespace Momo
 {
     struct WindowSpecification {
-        std::string Title = "Engine Window";
+        std::string Title = "Momo Window";
         uint32_t Width;
         uint32_t Height;
     };
