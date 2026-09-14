@@ -5,6 +5,8 @@ namespace Momo
 {
     // Initialize static mutex
     std::mutex Logger::s_Mutex;
+    // Initialize static current log level with compile-time default
+    std::atomic<LogLevel> Logger::s_CurrentLevel{MOMO_LOG_COMPILE_LEVEL};
 
     // ANSI color codes for terminal output
     namespace Colors
@@ -21,6 +23,11 @@ namespace Momo
     void Logger::Log(LogLevel level, std::string_view component, std::string_view message)
     {
         LogImpl(level, component, std::string(message));
+    }
+
+    void Logger::SetLevel(LogLevel level)
+    {
+        s_CurrentLevel.store(level, std::memory_order_relaxed);
     }
 
     void Logger::LogImpl(LogLevel level, std::string_view component, const std::string& message)

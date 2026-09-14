@@ -3,6 +3,10 @@ add_executable(KHApp
     src/main.cpp
 )
 
+if (WIN32)
+  target_compile_definitions(KHApp PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 # Warnings
 if (MSVC)
   target_compile_options(KHApp PRIVATE /W4 /permissive-)
