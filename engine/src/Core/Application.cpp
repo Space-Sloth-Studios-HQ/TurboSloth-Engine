@@ -79,14 +79,15 @@ namespace Momo
         using clock = std::chrono::steady_clock;
         auto last = clock::now();
 
-        uint32_t cubeRotationSpeed = 1; // radians per second
+        float totalTime = 0.0f;
+        float cubeRotationSpeed = 1.0f; // radians per second
 
 
         while (m_Running && !m_Window->ShouldClose())
         {
             auto now = clock::now();
             float dt = std::chrono::duration<float>(now - last).count();
-            float totalTime = std::chrono::duration<float>(now.time_since_epoch()).count();
+            totalTime += dt;
             LOG_INFO("Momo", "Frame time: {}", dt);
             last = now;
 
@@ -99,7 +100,7 @@ namespace Momo
             // TODO: Should be a dedicated entity.OnUpdate(dt) call instead of directly manipulating the model matrix here
             glm::vec3 rotationAxis = glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f));
             glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), totalTime * cubeRotationSpeed, rotationAxis);
-            LOG_INFO("Momo", "Model matrix: {}", glm::to_string(modelMatrix));
+            LOG_TRACE("Momo", "Model matrix: {}", glm::to_string(modelMatrix));
 
             m_Camera->OnUpdate(dt, inputState);
 
