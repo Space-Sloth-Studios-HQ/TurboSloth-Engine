@@ -48,7 +48,7 @@ namespace Momo
             {{-0.5f, -0.5f,  0.5f}, {0.2f, 1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f}},
         };
 
-        std::vector<uint16_t> indices = {
+        std::vector<uint32_t> indices = {
             0,  1,  2,   2,  3,  0,   // front
             4,  5,  6,   6,  7,  4,   // right
             8,  9, 10,  10, 11,  8,   // back

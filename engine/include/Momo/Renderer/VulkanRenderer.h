@@ -39,7 +39,7 @@ namespace Momo
         void RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
 
         AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
-        AllocatedBuffer CreateIndexBuffer(const std::vector<uint16_t>& indices);
+        AllocatedBuffer CreateIndexBuffer(const std::vector<uint32_t>& indices);
     private:
         void CreateInstance();
         void PickPhysicalDevice();

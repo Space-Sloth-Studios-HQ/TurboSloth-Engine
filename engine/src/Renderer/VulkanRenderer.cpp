@@ -320,7 +320,7 @@ namespace Momo
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
             m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
-            m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint16);
+            m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint32);
             
             PushConstantData pushConstantData;
             pushConstantData.projectionMatrix = m_ProjectionMatrix;
@@ -353,9 +353,9 @@ namespace Momo
         return CreateBuffer(vertices.data(), sizeof(Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer, static_cast<uint32_t>(vertices.size()));
     }
 
-    AllocatedBuffer VulkanRenderer::CreateIndexBuffer(const std::vector<uint16_t>& indices)
+    AllocatedBuffer VulkanRenderer::CreateIndexBuffer(const std::vector<uint32_t>& indices)
     {
-        return CreateBuffer(indices.data(), sizeof(uint16_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
+        return CreateBuffer(indices.data(), sizeof(uint32_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
     }
 
     AllocatedImage VulkanRenderer::CreateDepthBuffer()
