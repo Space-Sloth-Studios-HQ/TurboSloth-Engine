@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.26) # Updated to include copy_directory_if_different command
 project(KHClone LANGUAGES CXX)
 
 # Modern C++

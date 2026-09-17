@@ -1,4 +1,5 @@
 #include "Momo/Core/Application.h"
+#include "Momo/Renderer/VulkanMeshData.h"
 #include <chrono>
 #include <Momo/Logging/Logger.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
@@ -11,55 +12,12 @@ namespace Momo
         : m_Spec(spec)
     {
         LOG_INFO("Momo", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
-
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
-        // Temporary vertex buffer for hardcoded triangle vertices in the vertex shader
-        std::vector<Vertex> vertices = {
-            // front (+Z) - red
-            {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.2f, 0.2f}, { 0.0f,  0.0f,  1.0f}},
-            {{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.2f, 0.2f}, { 0.0f,  0.0f,  1.0f}},
-            {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.2f, 0.2f}, { 0.0f,  0.0f,  1.0f}},
-            {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.2f, 0.2f}, { 0.0f,  0.0f,  1.0f}},
-            // right (+X) - green
-            {{ 0.5f, -0.5f,  0.5f}, {0.2f, 1.0f, 0.2f}, { 1.0f,  0.0f,  0.0f}},
-            {{ 0.5f, -0.5f, -0.5f}, {0.2f, 1.0f, 0.2f}, { 1.0f,  0.0f,  0.0f}},
-            {{ 0.5f,  0.5f, -0.5f}, {0.2f, 1.0f, 0.2f}, { 1.0f,  0.0f,  0.0f}},
-            {{ 0.5f,  0.5f,  0.5f}, {0.2f, 1.0f, 0.2f}, { 1.0f,  0.0f,  0.0f}},
-            // back (-Z) - blue
-            {{ 0.5f, -0.5f, -0.5f}, {0.2f, 0.2f, 1.0f}, { 0.0f,  0.0f, -1.0f}},
-            {{-0.5f, -0.5f, -0.5f}, {0.2f, 0.2f, 1.0f}, { 0.0f,  0.0f, -1.0f}},
-            {{-0.5f,  0.5f, -0.5f}, {0.2f, 0.2f, 1.0f}, { 0.0f,  0.0f, -1.0f}},
-            {{ 0.5f,  0.5f, -0.5f}, {0.2f, 0.2f, 1.0f}, { 0.0f,  0.0f, -1.0f}},
-            // left (-X) - yellow
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 0.2f}, {-1.0f,  0.0f,  0.0f}},
-            {{-0.5f, -0.5f,  0.5f}, {1.0f, 1.0f, 0.2f}, {-1.0f,  0.0f,  0.0f}},
-            {{-0.5f,  0.5f,  0.5f}, {1.0f, 1.0f, 0.2f}, {-1.0f,  0.0f,  0.0f}},
-            {{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 0.2f}, {-1.0f,  0.0f,  0.0f}},
-            // top (+Y) - magenta
-            {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.2f, 1.0f}, { 0.0f,  1.0f,  0.0f}},
-            {{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.2f, 1.0f}, { 0.0f,  1.0f,  0.0f}},
-            {{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.2f, 1.0f}, { 0.0f,  1.0f,  0.0f}},
-            {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.2f, 1.0f}, { 0.0f,  1.0f,  0.0f}},
-            // bottom (-Y) - cyan
-            {{-0.5f, -0.5f, -0.5f}, {0.2f, 1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f}},
-            {{ 0.5f, -0.5f, -0.5f}, {0.2f, 1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f}},
-            {{ 0.5f, -0.5f,  0.5f}, {0.2f, 1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f}},
-            {{-0.5f, -0.5f,  0.5f}, {0.2f, 1.0f, 1.0f}, { 0.0f, -1.0f,  0.0f}},
-        };
+        m_ModelLoader = std::unique_ptr<Assets::IModelLoader>(Assets::IModelLoader::CreateGltfModelLoader());
 
-        std::vector<uint32_t> indices = {
-            0,  1,  2,   2,  3,  0,   // front
-            4,  5,  6,   6,  7,  4,   // right
-            8,  9, 10,  10, 11,  8,   // back
-            12, 13, 14,  14, 15, 12,   // left
-            16, 17, 18,  18, 19, 16,   // top
-            20, 21, 22,  22, 23, 20,   // bottom
-        };
-
-
-        m_VertexBuffer = m_Renderer.CreateVertexBuffer(vertices);
-        m_IndexBuffer = m_Renderer.CreateIndexBuffer(indices);
+        // Scene loading
+        m_Mesh = LoadMesh("Assets/Models/Cube/Cube.gltf");
         m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
     }
 
@@ -104,7 +62,7 @@ namespace Momo
 
             m_Camera->OnUpdate(dt, inputState);
 
-            m_Renderer.RenderFrame(*m_VertexBuffer, *m_IndexBuffer, m_Camera->GetViewMatrix(), modelMatrix);
+            m_Renderer.RenderFrame(*m_Mesh, m_Camera->GetViewMatrix(), modelMatrix);
 
             // crude temporary limiter so the console doesn't spam
             // std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -133,4 +91,34 @@ namespace Momo
         m_IsShutdown = true;
         LOG_INFO("Momo", "Shutdown complete.");
     }
-}
+
+    Renderer::VulkanMeshData Application::LoadMesh(const std::filesystem::path &path)
+    {
+        if (!m_ModelLoader)
+        {
+            LOG_ERROR("Momo", "Model loader not initialized.");
+            throw std::runtime_error("Model loader not initialized.");
+        }
+
+        auto sceneMeshData = m_ModelLoader->LoadModel(path);
+        if (!sceneMeshData)
+        {
+            LOG_ERROR("Momo", "Failed to load model from path: {}", path.string());
+            throw std::runtime_error("Failed to load model from path: " + path.string());
+        }
+
+        LOG_DEBUG("Momo", "Loaded vertex data with {} vertices and {} indices", sceneMeshData->vertices.size(), sceneMeshData->indices.size());
+        // for (size_t i = 0; i < sceneMeshData->vertices.size(); ++i)
+        //     LOG_DEBUG("Momo", "Vertex data [{}]: {}", i, glm::to_string(sceneMeshData->vertices[i]));
+
+        try {
+            return Renderer::VulkanMeshData {
+                .m_VertexBuffer = m_Renderer.CreateVertexBuffer(sceneMeshData->vertices),
+                .m_IndexBuffer = m_Renderer.CreateIndexBuffer(sceneMeshData->indices)
+            };
+        } catch (const std::exception& e) {
+            LOG_ERROR("Momo", "Exception occurred while loading mesh: {}", e.what());
+            throw;
+        }
+    }
+} // namespace Momo

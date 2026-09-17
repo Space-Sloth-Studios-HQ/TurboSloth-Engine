@@ -9,6 +9,10 @@ add_library(MomoEngine STATIC
   src/Renderer/Camera.cpp
   include/Momo/Input/InputState.h
   include/Momo/Input/Key.h
+  include/Momo/ECS/Components/Transform.h
+  include/Momo/Assets/ModelLoader.h
+  src/Assets/ModelLoader.cpp
+  include/Momo/Renderer/VulkanMeshData.h
 )
 
 # Public headers are under engine/include
@@ -17,15 +21,21 @@ target_include_directories(MomoEngine
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# ----------- GLFW via FetchContent -----------------
 include(FetchContent)
+# ----------- FastGltf via FetchContent -----------------
+FetchContent_Declare(
+  fastgltf
+  GIT_REPOSITORY https://github.com/spnda/fastgltf
+  GIT_TAG v0.9.0
+)
 
+# ----------- GLFW via FetchContent -----------------
 FetchContent_Declare(
   glfw
   GIT_REPOSITORY https://github.com/glfw/glfw.git
   GIT_TAG 3.4
 )
-FetchContent_MakeAvailable(glfw)
+FetchContent_MakeAvailable(fastgltf glfw)
 
 # target_compile_definitions(MomoEngine PRIVATE glfw)
 
@@ -50,6 +60,7 @@ target_link_libraries(MomoEngine
     Vulkan::Vulkan
   PRIVATE
     glfw
+    fastgltf::fastgltf
 )
 
 # If your GLFW code includes <GLFW/glfw3.h> and you want it to include <vulkan/vulkan.h> for you:

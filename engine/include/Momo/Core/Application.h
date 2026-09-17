@@ -6,7 +6,7 @@
 #include "Momo/Window.h"
 #include "Momo/Renderer/VulkanRenderer.h"
 #include "Momo/Renderer/Camera.h"
-#include "Momo/Input/InputState.h"
+#include "Momo/Assets/ModelLoader.h"
 
 namespace Momo
 {
@@ -46,14 +46,15 @@ namespace Momo
         ApplicationSpecification m_Spec{};
         bool m_Running = true;
         bool m_IsShutdown = false;
+        Renderer::VulkanMeshData LoadMesh(const std::filesystem::path &path);
 
         std::unique_ptr<IWindow> m_Window;
-        VulkanRenderer m_Renderer; // Maybe this can be abstracted later
-
-        std::optional<AllocatedBuffer> m_VertexBuffer;
-        std::optional<AllocatedBuffer> m_IndexBuffer;
-        std::optional<Camera> m_Camera;
-
+        Renderer::VulkanRenderer m_Renderer; // Maybe this can be abstracted later
         std::vector<std::unique_ptr<Layer>> m_Layers;
+        std::unique_ptr<Assets::IModelLoader> m_ModelLoader;
+
+        // Scene data
+        std::optional<Camera> m_Camera;
+        std::optional<Renderer::VulkanMeshData> m_Mesh; // TODO: Should be a full scene object as active scene
     };
 }

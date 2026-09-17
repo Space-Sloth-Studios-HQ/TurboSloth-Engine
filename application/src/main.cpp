@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     }
 
     Momo::ApplicationSpecification appSpec;
-    appSpec.Name = "KHClone";
+    appSpec.Name = "Hyperbolic Time Chamber v0.1";
     appSpec.WindowSpec.Width = 1920;
     appSpec.WindowSpec.Height = 1080;
 

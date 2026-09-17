@@ -134,6 +134,8 @@ namespace
 
 namespace Momo
 {
+namespace Renderer
+{
     void VulkanRenderer::Init(const IWindow& window)
     {
         m_Window = &window;
@@ -288,7 +290,7 @@ namespace Momo
         }
     }
 
-    void VulkanRenderer::RenderFrame(AllocatedBuffer& vertexBuffer, AllocatedBuffer& indexBuffer, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
+    void VulkanRenderer::RenderFrame(VulkanMeshData& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -319,15 +321,15 @@ namespace Momo
                 0.0f, 1.0f));
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
-            m_CommandBuffer->bindVertexBuffers(0, *vertexBuffer.buffer, {0});
-            m_CommandBuffer->bindIndexBuffer(*indexBuffer.buffer, 0, vk::IndexType::eUint32);
+            m_CommandBuffer->bindVertexBuffers(0, *meshData.m_VertexBuffer.buffer, {0});
+            m_CommandBuffer->bindIndexBuffer(*meshData.m_IndexBuffer.buffer, 0, vk::IndexType::eUint32);
             
             PushConstantData pushConstantData;
             pushConstantData.projectionMatrix = m_ProjectionMatrix;
             pushConstantData.viewMatrix = viewMatrix;
             pushConstantData.modelMatrix = modelMatrix;
             m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
-            m_CommandBuffer->drawIndexed(indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
+            m_CommandBuffer->drawIndexed(meshData.m_IndexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
 
             EndFrame(imageIndex);
         } catch (const vk::OutOfDateKHRError& e) {
@@ -1102,4 +1104,5 @@ namespace Momo
         fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
         m_InFlightFence = vk::raii::Fence(m_Device.value(), fenceInfo);
     }
-}
+} // namespace Renderer
+} // namespace Momo

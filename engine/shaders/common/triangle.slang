@@ -24,7 +24,8 @@ VertexOutput vertMain(VertexInput input) {
     VertexOutput output;
     float4x4 mvp = mul(mul(pc.projection, pc.view), pc.model);
     output.sv_position = mul(mvp, float4(input.position, 1.0));
-    output.color = input.color;
+    // output.color = input.color;
+    output.color = float3(0.5, 1.0, 0.3);
     output.worldNormal = mul((float3x3)pc.model, input.normal);
     return output;
 }
