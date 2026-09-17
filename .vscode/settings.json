@@ -1,0 +1,11 @@
+{
+  // ─── C++ language server ────────────────────────────────────────────
+  // clangd powers gd, hover, completion and rename. It reads the compile
+  // database located via the .clangd file at the repo root.
+  "clangd.arguments": [
+    "--background-index",      // index the whole project, not just open files
+    "--clang-tidy",            // inline lint diagnostics (drop this if noisy)
+    "--header-insertion=never", // don't let completion silently add #includes
+    "--completion-style=detailed"
+  ]
+}

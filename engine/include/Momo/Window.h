@@ -1,11 +1,12 @@
 #pragma once
 #include <string>
 #include <cstdint>
+#include "Momo/Input/InputState.h"
 
-namespace Engine
+namespace Momo
 {
     struct WindowSpecification {
-        std::string Title = "Engine Window";
+        std::string Title = "Momo Window";
         uint32_t Width;
         uint32_t Height;
     };
@@ -13,6 +14,7 @@ namespace Engine
     class IWindow {
     public:
         virtual ~IWindow() = default;
+        virtual Input::InputState ReadInput() = 0;
         virtual void PollEvents() = 0;
         virtual bool ShouldClose() const = 0;
 

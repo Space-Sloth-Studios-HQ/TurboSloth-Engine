@@ -1,0 +1,226 @@
+# Momo Engine
+
+A modern game engine built with Vulkan and C++20, featuring cross-platform support via MoltenVK on macOS.
+
+## Features
+
+- **Vulkan Renderer**: Modern graphics API with MoltenVK support for macOS
+- **GLFW Integration**: Cross-platform window and input management
+- **Layer-based Architecture**: Modular application structure with layer system
+- **C++20**: Modern C++ features and best practices
+- **CMake Build System**: Cross-platform build configuration with presets
+
+## Prerequisites
+
+### Windows
+
+- **Visual Studio 2022** (or Build Tools for Visual Studio 2022) with C++ workload
+- **CMake** (3.21+): Install via [cmake.org](https://cmake.org/download/) or `winget install Kitware.CMake`
+- **Ninja**: `winget install Ninja-build.Ninja` (or include via Visual Studio)
+- **LLVM/Clang** (optional, for clang presets): `winget install LLVM.LLVM`
+- **Vulkan SDK**: Download from [LunarG](https://vulkan.lunarg.com/sdk/home)
+  - Run the installer and ensure "Shader Toolchain Debug Symbols" is selected
+  - The installer automatically sets `VULKAN_SDK` environment variable
+
+### macOS
+
+- **Xcode Command Line Tools**: `xcode-select --install`
+- **CMake** (3.21+): `brew install cmake`
+- **Ninja**: `brew install ninja`
+- **Vulkan SDK**: Download from [LunarG](https://vulkan.lunarg.com/sdk/home)
+  - Install the macOS SDK (includes MoltenVK)
+  - Current tested version: 1.4.328.1
+
+## Environment Setup
+
+### Windows
+
+The Vulkan SDK installer automatically configures the required environment variables. Verify by opening a new terminal and running:
+
+```powershell
+echo $env:VULKAN_SDK
+```
+
+If using Clang, ensure it's in your PATH:
+```powershell
+clang --version
+```
+
+### macOS
+
+Add the following to your `~/.zshrc` (or `~/.bashrc` for Bash):
+
+```bash
+export VULKAN_SDK="$HOME/VulkanSDK/1.4.328.1/macOS"
+export PATH="$VULKAN_SDK/bin:$PATH"
+export DYLD_LIBRARY_PATH="$VULKAN_SDK/lib:$DYLD_LIBRARY_PATH"
+export VK_ICD_FILENAMES="$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json"
+export VK_LAYER_PATH="$VULKAN_SDK/share/vulkan/explicit_layer.d"
+```
+
+After editing, reload your shell configuration:
+```bash
+source ~/.zshrc  # or source ~/.bashrc
+```
+
+## Building
+
+### Windows
+
+Use the Clang preset (requires LLVM/Clang installed):
+
+```powershell
+# Configure (Debug)
+cmake --preset clang-debug
+
+# Build
+cmake --build build/clang-debug
+
+# Or for Release builds
+cmake --preset clang-release
+cmake --build build/clang-release
+```
+
+The executable will be created at `build/clang-debug/application/khclone.exe`.
+
+### macOS
+
+The project includes macOS-specific build presets that use the system AppleClang compiler:
+
+```bash
+# Configure (Debug)
+cmake --preset macos-debug
+
+# Build
+cmake --build build/macos-debug
+
+# Or for Release builds
+cmake --preset macos-release
+cmake --build build/macos-release
+```
+
+The executable will be created at `build/macos-debug/application/khclone`.
+
+### Alternative: Generic Clang Presets
+
+On macOS, if you prefer to use a different clang installation:
+
+```bash
+cmake --preset clang-debug
+cmake --build build/clang-debug
+```
+
+## Running
+
+After building, run the application:
+
+**Windows:**
+```powershell
+.\build\clang-debug\application\khclone.exe
+```
+
+**macOS:**
+```bash
+./build/macos-debug/application/khclone
+```
+
+You should see output similar to:
+```
+[Momo] Starting 'KHClone' (1920x1080)
+[VulkanRenderer] Creating Vulkan instance...
+[AppLayer] Attached to application.
+```
+
+## Technology Stack
+
+- **Graphics API**: Vulkan 1.3+ (via MoltenVK on macOS)
+- **Windowing**: GLFW 3.4
+- **Language**: C++20
+- **Build System**: CMake 3.21+ with Ninja generator
+- **Platforms**: Windows 10/11, macOS (Apple Silicon and Intel)
+
+## Development
+
+### Adding New Layers
+
+The engine uses a layer-based architecture. To create a new layer:
+
+```cpp
+class MyLayer : public Momo::Layer
+{
+public:
+    void OnAttach() override
+    {
+        // Initialize layer resources
+    }
+
+    void OnUpdate(float dt) override
+    {
+        // Update logic
+    }
+};
+
+// In main.cpp
+app.PushLayer<MyLayer>();
+```
+
+### CMake Presets
+
+Available presets:
+- `macos-debug`: macOS with system AppleClang (Debug)
+- `macos-release`: macOS with system AppleClang (Release)
+- `clang-debug`: Generic Clang (Debug)
+- `clang-release`: Generic Clang (Release)
+
+### Compiler Warnings
+
+The project is configured with strict compiler warnings:
+- GCC/Clang: `-Wall -Wextra -Wpedantic`
+- MSVC: `/W4 /permissive-`
+
+## MoltenVK Notes
+
+MoltenVK is a Vulkan Portability implementation that translates Vulkan calls to Metal on Apple platforms. The engine properly configures:
+
+- `VK_KHR_portability_enumeration` extension
+- `VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR` flag
+- MoltenVK ICD (Installable Client Driver) detection
+
+These are handled automatically by the engine's Vulkan initialization code.
+
+## Troubleshooting
+
+### Windows: "clang not found" or CMake can't find compiler
+
+1. Ensure LLVM is installed: `winget install LLVM.LLVM`
+2. Add LLVM to PATH (usually `C:\Program Files\LLVM\bin`)
+3. Open a new terminal after installation
+
+### Windows: Vulkan validation layer errors
+
+1. Ensure Vulkan SDK is installed with validation layers
+2. Check `VULKAN_SDK` environment variable is set
+3. Try running from Developer Command Prompt for VS 2022
+
+### macOS: "ErrorIncompatibleDriver"
+
+If you see this error, ensure:
+1. Vulkan SDK is properly installed
+2. Environment variables are set correctly (see Environment Setup)
+3. You've reloaded your shell configuration or opened a new terminal
+
+### macOS: Build Errors with Homebrew Clang
+
+Use the `macos-debug` or `macos-release` presets instead of `clang-debug`/`clang-release` to use the system AppleClang compiler.
+
+### GLFW Extension Errors
+
+Ensure GLFW is being built with Vulkan support. The engine automatically fetches and builds GLFW with the correct configuration.
+
+## License
+
+[Add your license information here]
+
+## Contributing
+
+[Add contribution guidelines here]
