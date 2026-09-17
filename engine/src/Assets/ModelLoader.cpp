@@ -64,9 +64,6 @@ public:
             if (node.meshIndex.has_value()) {
                 LOG_INFO(TAG, "Node has a mesh index: {}", node.meshIndex.value());
                 for (const auto &primitive : gltf.meshes[node.meshIndex.value()].primitives) {
-                    MeshData res;
-                    res.localTransform = mapFastGltfToGLM(nodeTransform);
-
                     if (primitive.type != fastgltf::PrimitiveType::Triangles) {
                         LOG_WARN(TAG, "Unsupported primitive type: Primitive type is not triangles, skipping");
                         continue;
@@ -81,6 +78,9 @@ public:
                         LOG_WARN(TAG, "Primitive does not have NORMAL attribute, skipping");
                         continue;
                     }
+
+                    MeshData res;
+                    res.localTransform = mapFastGltfToGLM(nodeTransform);
                     auto& posAccessor = gltf.accessors[positionAttribute->accessorIndex];
                     res.vertices.resize(posAccessor.count);
 
@@ -96,16 +96,26 @@ public:
                     });
 
                     auto& indexAccessorIdx = primitive.indicesAccessor;
-                    if (!indexAccessorIdx.has_value()) {
-                        LOG_INFO(TAG, "Primitive does not have an index accessor, skipping");
-                        continue;
+                    if (indexAccessorIdx.has_value()) {
+                        auto &indexAccessor = gltf.accessors[*indexAccessorIdx];
+                        res.indices.resize(indexAccessor.count);
+                        fastgltf::iterateAccessorWithIndex<std::uint32_t>(gltf, indexAccessor,
+                        [&](std::uint32_t indexValue, std::size_t index) {
+                            res.indices[index] = indexValue;
+                        });
                     }
-                    auto &indexAccessor = gltf.accessors[*indexAccessorIdx];
-                    res.indices.resize(indexAccessor.count);
-                    fastgltf::iterateAccessorWithIndex<std::uint32_t>(gltf, indexAccessor,
-                    [&](std::uint32_t indexValue, std::size_t index) {
-                        res.indices[index] = indexValue;
-                    });
+
+                    auto materialIndex = primitive.materialIndex;
+                    if (materialIndex.has_value()) {
+                        auto &material = gltf.materials[*materialIndex];
+                        res.baseColorFactor = glm::vec4(
+                            material.pbrData.baseColorFactor[0],
+                            material.pbrData.baseColorFactor[1],
+                            material.pbrData.baseColorFactor[2],
+                            material.pbrData.baseColorFactor[3]
+                        );
+                    }
+
                     resVec.push_back(std::move(res));
                 }
             }

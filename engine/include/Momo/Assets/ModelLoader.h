@@ -11,6 +11,7 @@ struct MeshData {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     glm::mat4 localTransform;
+    glm::vec4 baseColorFactor;
 };
 
 class IModelLoader {

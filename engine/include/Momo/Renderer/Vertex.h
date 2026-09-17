@@ -7,7 +7,7 @@ namespace Momo {
 class Vertex {
 public:
     glm::vec3 position;
-    glm::vec3 color;
+    glm::vec4 baseColorFactor;
     glm::vec3 normal;
     // glm::vec2 texCoord;
 
@@ -32,7 +32,7 @@ public:
             1,                          // location
             0,                          // binding
             vk::Format::eR32G32B32Sfloat, // format
-            offsetof(Vertex, color)    // offset
+            offsetof(Vertex, baseColorFactor)    // offset
         );
         attributeDescriptions[2] = vk::VertexInputAttributeDescription(
             2,                          // location

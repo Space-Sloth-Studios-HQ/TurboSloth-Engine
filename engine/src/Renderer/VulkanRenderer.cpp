@@ -329,6 +329,7 @@ namespace Renderer
                 pushConstantData.projectionMatrix = m_ProjectionMatrix;
                 pushConstantData.viewMatrix = viewMatrix;
                 pushConstantData.modelMatrix = modelMatrix * mesh.localTransform; // Move to GPU..?
+                pushConstantData.baseColorFactor = mesh.baseColorFactor;
                 m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
                 m_CommandBuffer->drawIndexed(mesh.m_IndexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
             }
@@ -554,7 +555,7 @@ namespace Renderer
         auto pushConstantRange = vk::PushConstantRange(
             vk::ShaderStageFlagBits::eVertex, // stageFlags
             0,                                 // offset
-            static_cast<uint32_t>(sizeof(glm::mat4) * 3)                  // size
+            static_cast<uint32_t>(sizeof(PushConstantData))                  // size
         );
 
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo(

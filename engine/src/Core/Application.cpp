@@ -116,7 +116,7 @@ namespace Momo
                     .m_VertexBuffer = m_Renderer.CreateVertexBuffer(meshData.vertices),
                     .m_IndexBuffer = m_Renderer.CreateIndexBuffer(meshData.indices),
                     .localTransform = meshData.localTransform,
-                    
+                    .baseColorFactor = meshData.baseColorFactor,
                 });
             }
             return meshDataVec;

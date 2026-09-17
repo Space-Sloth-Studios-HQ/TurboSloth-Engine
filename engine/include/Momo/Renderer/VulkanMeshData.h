@@ -12,6 +12,7 @@ struct PushConstantData
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
+    glm::vec4 baseColorFactor;
 };
 
 struct AllocatedImage
@@ -32,6 +33,7 @@ struct VulkanMeshData
     AllocatedBuffer m_VertexBuffer;
     AllocatedBuffer m_IndexBuffer;
     glm::mat4 localTransform;
+    glm::vec4 baseColorFactor;
 };
 } // namespace Renderer
 } // namespace Momo
