@@ -31,6 +31,7 @@ struct VulkanMeshData
 {
     AllocatedBuffer m_VertexBuffer;
     AllocatedBuffer m_IndexBuffer;
+    glm::mat4 localTransform;
 };
 } // namespace Renderer
 } // namespace Momo

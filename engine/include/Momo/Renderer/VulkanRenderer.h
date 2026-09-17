@@ -19,7 +19,7 @@ class VulkanRenderer
 public:
     void Init(const IWindow& window);
     void Shutdown();
-    void RenderFrame(VulkanMeshData& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
+    void RenderFrame(std::vector<VulkanMeshData>& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
 
     AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
     AllocatedBuffer CreateIndexBuffer(const std::vector<uint32_t>& indices);

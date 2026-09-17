@@ -17,13 +17,23 @@ private:
         return result;
     }
 
+    glm::mat4 mapFastGltfToGLM(const fastgltf::math::fmat4x4 &mat) {
+        glm::mat4 result;
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                result[i][j] = mat[i][j];
+            }
+        }
+        return result;
+    }
+
     fastgltf::Parser parser;
     const std::string TAG = "FastGltfModelLoader";
 
 public:
     FastGltfModelLoader() : parser(fastgltf::Parser()) {}
         
-    std::optional<MeshData> LoadModel(const std::filesystem::path &path) override {
+    std::optional<std::vector<MeshData>> LoadModel(const std::filesystem::path &path) override {
         // Implementation for loading a model using FastGltf goes here
         if (path.empty()) {
             LOG_ERROR(TAG, "Path is empty: {}", path.string());
@@ -47,13 +57,16 @@ public:
         // TODO: Identity for now, should be replaced with actual scene transformation from the entity
         fastgltf::math::fmat4x4 sceneTransform = mapGLMToFastGltf(glm::mat4(1.0f));
 
-        MeshData res;
+        std::vector<MeshData> resVec;
         fastgltf::iterateSceneNodes(asset.get(), sceneIndex, sceneTransform, [&](fastgltf::Node &node, fastgltf::math::fmat4x4 nodeTransform) {
             auto &gltf = asset.get();
             // Process each node here
             if (node.meshIndex.has_value()) {
                 LOG_INFO(TAG, "Node has a mesh index: {}", node.meshIndex.value());
                 for (const auto &primitive : gltf.meshes[node.meshIndex.value()].primitives) {
+                    MeshData res;
+                    res.localTransform = mapFastGltfToGLM(nodeTransform);
+
                     if (primitive.type != fastgltf::PrimitiveType::Triangles) {
                         LOG_WARN(TAG, "Unsupported primitive type: Primitive type is not triangles, skipping");
                         continue;
@@ -93,12 +106,13 @@ public:
                     [&](std::uint32_t indexValue, std::size_t index) {
                         res.indices[index] = indexValue;
                     });
+                    resVec.push_back(std::move(res));
                 }
             }
         });
 
         // Load the model using FastGltf here
-        return res;
+        return resVec;
     }
 
 }; 

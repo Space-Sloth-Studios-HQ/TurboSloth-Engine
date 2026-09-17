@@ -17,7 +17,7 @@ namespace Momo
         m_ModelLoader = std::unique_ptr<Assets::IModelLoader>(Assets::IModelLoader::CreateGltfModelLoader());
 
         // Scene loading
-        m_Mesh = LoadMesh("Assets/Models/Cube/Cube.gltf");
+        m_Mesh = LoadMesh("Assets/Models/Duck/Duck.gltf");
         m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
     }
 
@@ -92,7 +92,7 @@ namespace Momo
         LOG_INFO("Momo", "Shutdown complete.");
     }
 
-    Renderer::VulkanMeshData Application::LoadMesh(const std::filesystem::path &path)
+    std::vector<Renderer::VulkanMeshData> Application::LoadMesh(const std::filesystem::path &path)
     {
         if (!m_ModelLoader)
         {
@@ -107,15 +107,19 @@ namespace Momo
             throw std::runtime_error("Failed to load model from path: " + path.string());
         }
 
-        LOG_DEBUG("Momo", "Loaded vertex data with {} vertices and {} indices", sceneMeshData->vertices.size(), sceneMeshData->indices.size());
-        // for (size_t i = 0; i < sceneMeshData->vertices.size(); ++i)
-        //     LOG_DEBUG("Momo", "Vertex data [{}]: {}", i, glm::to_string(sceneMeshData->vertices[i]));
-
         try {
-            return Renderer::VulkanMeshData {
-                .m_VertexBuffer = m_Renderer.CreateVertexBuffer(sceneMeshData->vertices),
-                .m_IndexBuffer = m_Renderer.CreateIndexBuffer(sceneMeshData->indices)
-            };
+            std::vector<Renderer::VulkanMeshData> meshDataVec;
+            for (const auto& meshData : *sceneMeshData)
+            {
+                // TODO: Consider caching vertex and index buffers to avoid recreating them for the same mesh.
+                meshDataVec.push_back(Renderer::VulkanMeshData {
+                    .m_VertexBuffer = m_Renderer.CreateVertexBuffer(meshData.vertices),
+                    .m_IndexBuffer = m_Renderer.CreateIndexBuffer(meshData.indices),
+                    .localTransform = meshData.localTransform,
+                    
+                });
+            }
+            return meshDataVec;
         } catch (const std::exception& e) {
             LOG_ERROR("Momo", "Exception occurred while loading mesh: {}", e.what());
             throw;

@@ -290,7 +290,7 @@ namespace Renderer
         }
     }
 
-    void VulkanRenderer::RenderFrame(VulkanMeshData& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
+    void VulkanRenderer::RenderFrame(std::vector<VulkanMeshData>& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -321,15 +321,18 @@ namespace Renderer
                 0.0f, 1.0f));
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
-            m_CommandBuffer->bindVertexBuffers(0, *meshData.m_VertexBuffer.buffer, {0});
-            m_CommandBuffer->bindIndexBuffer(*meshData.m_IndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+            for (const auto& mesh : meshData) {
+                m_CommandBuffer->bindVertexBuffers(0, *mesh.m_VertexBuffer.buffer, {0});
+                m_CommandBuffer->bindIndexBuffer(*mesh.m_IndexBuffer.buffer, 0, vk::IndexType::eUint32);
+                PushConstantData pushConstantData;
+                pushConstantData.projectionMatrix = m_ProjectionMatrix;
+                pushConstantData.viewMatrix = viewMatrix;
+                pushConstantData.modelMatrix = modelMatrix * mesh.localTransform; // Move to GPU..?
+                m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
+                m_CommandBuffer->drawIndexed(mesh.m_IndexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
+            }
             
-            PushConstantData pushConstantData;
-            pushConstantData.projectionMatrix = m_ProjectionMatrix;
-            pushConstantData.viewMatrix = viewMatrix;
-            pushConstantData.modelMatrix = modelMatrix;
-            m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
-            m_CommandBuffer->drawIndexed(meshData.m_IndexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
 
             EndFrame(imageIndex);
         } catch (const vk::OutOfDateKHRError& e) {
