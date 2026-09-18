@@ -33,7 +33,7 @@ private:
 public:
     FastGltfModelLoader() : parser(fastgltf::Parser()) {}
         
-    std::optional<std::vector<MeshData>> LoadModel(const std::filesystem::path &path) override {
+    std::optional<std::vector<Geometry::MeshData>> LoadModel(const std::filesystem::path &path) override {
         // Implementation for loading a model using FastGltf goes here
         if (path.empty()) {
             LOG_ERROR(TAG, "Path is empty: {}", path.string());
@@ -57,7 +57,7 @@ public:
         // TODO: Identity for now, should be replaced with actual scene transformation from the entity
         fastgltf::math::fmat4x4 sceneTransform = mapGLMToFastGltf(glm::mat4(1.0f));
 
-        std::vector<MeshData> resVec;
+        std::vector<Geometry::MeshData> resVec;
         fastgltf::iterateSceneNodes(asset.get(), sceneIndex, sceneTransform, [&](fastgltf::Node &node, fastgltf::math::fmat4x4 nodeTransform) {
             auto &gltf = asset.get();
             // Process each node here
@@ -79,7 +79,7 @@ public:
                         continue;
                     }
 
-                    MeshData res;
+                    Geometry::MeshData res = Geometry::MeshData();
                     res.localTransform = mapFastGltfToGLM(nodeTransform);
                     auto& posAccessor = gltf.accessors[positionAttribute->accessorIndex];
                     res.vertices.resize(posAccessor.count);

@@ -6,13 +6,11 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 #include "Momo/Window.h"
-#include "Vertex.h"
+#include "Geometry/Vertex.h"
 #include "VulkanMeshData.h"
 
 namespace Momo {
 namespace Renderer {
-
-
 
 class VulkanRenderer
 {
@@ -21,7 +19,7 @@ public:
     void Shutdown();
     void RenderFrame(std::vector<VulkanMeshData>& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
 
-    AllocatedBuffer CreateVertexBuffer(const std::vector<Vertex>& vertices);
+    AllocatedBuffer CreateVertexBuffer(const std::vector<Momo::Geometry::Vertex>& vertices);
     AllocatedBuffer CreateIndexBuffer(const std::vector<uint32_t>& indices);
 private:
     void CreateInstance();

@@ -13,6 +13,7 @@ add_library(MomoEngine STATIC
   include/Momo/Assets/ModelLoader.h
   src/Assets/ModelLoader.cpp
   include/Momo/Renderer/VulkanMeshData.h
+  include/Geometry/Vertex.h
 )
 
 # Public headers are under engine/include

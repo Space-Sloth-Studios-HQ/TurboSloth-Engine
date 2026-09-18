@@ -17,7 +17,8 @@ namespace Momo
         m_ModelLoader = std::unique_ptr<Assets::IModelLoader>(Assets::IModelLoader::CreateGltfModelLoader());
 
         // Scene loading
-        m_Mesh = LoadMesh("Assets/Models/Panko/PANKO_Rigged.glb");
+        // m_Mesh = LoadMesh("Assets/Models/Panko/PANKO_Rigged.glb");
+        m_Mesh = LoadMesh("Assets/Models/Duck/Duck.gltf");
         m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
     }
 

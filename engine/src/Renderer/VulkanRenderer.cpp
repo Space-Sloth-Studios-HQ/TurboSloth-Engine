@@ -132,10 +132,40 @@ namespace
     }
 }
 
-namespace Momo
-{
-namespace Renderer
-{
+namespace Momo {
+namespace Renderer {
+    static vk::VertexInputBindingDescription GetBindingDescription() {
+        vk::VertexInputBindingDescription bindingDescription(
+            0,                          // binding
+            sizeof(Geometry::Vertex),             // stride
+            vk::VertexInputRate::eVertex // inputRate
+        );
+        return bindingDescription;
+    }
+
+    static std::array<vk::VertexInputAttributeDescription, 3> GetAttributeDescriptions() {
+        std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions = {};
+        attributeDescriptions[0] = vk::VertexInputAttributeDescription(
+            0,                          // location
+            0,                          // binding
+            vk::Format::eR32G32B32Sfloat,  // format
+            offsetof(Geometry::Vertex, position)  // offset
+        );
+        attributeDescriptions[1] = vk::VertexInputAttributeDescription(
+            1,                          // location
+            0,                          // binding
+            vk::Format::eR32G32B32Sfloat, // format
+            offsetof(Geometry::Vertex, normal)   // offset
+        );
+        attributeDescriptions[2] = vk::VertexInputAttributeDescription(
+            2,                          // location
+            0,                          // binding
+            vk::Format::eR32G32Sfloat, // format
+            offsetof(Geometry::Vertex, texCoord)   // offset
+        );
+        return attributeDescriptions;
+    }
+
     void VulkanRenderer::Init(const IWindow& window)
     {
         m_Window = &window;
@@ -354,9 +384,9 @@ namespace Renderer
         throw std::runtime_error("Failed to find suitable memory type!");
     }
 
-    AllocatedBuffer VulkanRenderer::CreateVertexBuffer(const std::vector<Vertex>& vertices)
+    AllocatedBuffer VulkanRenderer::CreateVertexBuffer(const std::vector<Geometry::Vertex>& vertices)
     {
-        return CreateBuffer(vertices.data(), sizeof(Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer, static_cast<uint32_t>(vertices.size()));
+        return CreateBuffer(vertices.data(), sizeof(Geometry::Vertex) * vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer, static_cast<uint32_t>(vertices.size()));
     }
 
     AllocatedBuffer VulkanRenderer::CreateIndexBuffer(const std::vector<uint32_t>& indices)
@@ -447,8 +477,8 @@ namespace Renderer
         // ═══════════════════════════════════════════════════════════
         // 1. VERTEX INPUT - Describes vertex data format
         // ═══════════════════════════════════════════════════════════
-        auto bindingDescription = Vertex::GetBindingDescription();
-        auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+        auto bindingDescription = GetBindingDescription();
+        auto attributeDescriptions = GetAttributeDescriptions();
         vk::PipelineVertexInputStateCreateInfo vertexInputInfo(
             {},        // flags
             1, &bindingDescription, // vertexBindingDescriptions
