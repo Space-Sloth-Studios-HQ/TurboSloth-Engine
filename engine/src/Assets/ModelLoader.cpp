@@ -28,14 +28,62 @@ private:
         return result;
     }
 
-    std::optional<TextureData> LoadTextureDataFromFile(const std::filesystem::path &path) {
-        return std::make_optional<TextureData>();
+    std::optional<TextureSource> LoadTextureSourceFromFile(const std::filesystem::path &path) {
+        return std::make_optional<TextureSource>();
     }
-    std::optional<TextureData> LoadTextureDataFromBufferView(const fastgltf::sources::BufferView &bufferView) {
-        return std::make_optional<TextureData>();
+    std::optional<TextureSource> LoadTextureSourceFromBufferView(const fastgltf::sources::BufferView &bufferView) {
+        return std::make_optional<TextureSource>();
     }
-    std::optional<TextureData> LoadTextureDataFromArray(const fastgltf::sources::Array &arraySource) {
-        return std::make_optional<TextureData>();
+    std::optional<TextureSource> LoadTextureSourceFromArray(const fastgltf::sources::Array &arraySource) {
+        return std::make_optional<TextureSource>();
+    }
+
+    // Decodes one glTF image. Images are file-level, so this runs once per
+    // image no matter how many primitives end up referencing it.
+    std::optional<TextureSource> LoadTextureSource(const fastgltf::Image &image,
+                                                   const std::filesystem::path &baseDir) {
+        return std::visit<std::optional<TextureSource>>(fastgltf::visitor{
+            [&](const fastgltf::sources::URI &uriSource) {
+                // TODO: Implement actual image loading from the path
+                return LoadTextureSourceFromFile(baseDir / std::filesystem::path(uriSource.uri.string()));
+            },
+            [&](const fastgltf::sources::BufferView &bufferView) {
+                // TODO: Implement actual image loading from the buffer view
+                return LoadTextureSourceFromBufferView(bufferView);
+            },
+            [&](const fastgltf::sources::Array &arraySource) {
+                // TODO: Implement actual image loading from the array source
+                return LoadTextureSourceFromArray(arraySource);
+            },
+            [&](auto&) -> std::optional<TextureSource> {
+                LOG_WARN(TAG, "Unsupported image source");
+                return std::nullopt;
+            }
+        }, image.data);
+    }
+
+    // Walks material -> texture -> image to find the image backing the base
+    // colour, so materials can reference ModelSource::textures by index.
+    std::optional<uint32_t> FindBaseColorImageIndex(const fastgltf::Asset &gltf,
+                                                    const fastgltf::Material &material) {
+        const auto &baseColorTexture = material.pbrData.baseColorTexture;
+        if (!baseColorTexture.has_value()) {
+            return std::nullopt;
+        }
+
+        if (baseColorTexture->texCoordIndex != 0) {
+            LOG_WARN(TAG, "Base color texture uses TEXCOORD_{}, only TEXCOORD_0 is supported",
+                     baseColorTexture->texCoordIndex);
+        }
+
+        const auto &texture = gltf.textures[baseColorTexture->textureIndex];
+        if (!texture.imageIndex.has_value()) {
+            LOG_WARN(TAG, "Texture has no associated image");
+            return std::nullopt;
+        }
+        // TODO: texture.samplerIndex is dropped here; revisit when TextureData
+        // grows sampling parameters.
+        return static_cast<uint32_t>(*texture.imageIndex);
     }
 
     fastgltf::Parser parser;
@@ -44,7 +92,7 @@ private:
 public:
     FastGltfModelLoader() : parser(fastgltf::Parser()) {}
         
-    std::optional<Assets::ModelData> LoadModel(const std::filesystem::path &path) override {
+    std::optional<Assets::ModelSource> LoadModel(const std::filesystem::path &path) override {
         // Implementation for loading a model using FastGltf goes here
         if (path.empty()) {
             LOG_ERROR(TAG, "Path is empty: {}", path.string());
@@ -68,9 +116,37 @@ public:
         // TODO: Identity for now, should be replaced with actual scene transformation from the entity
         fastgltf::math::fmat4x4 sceneTransform = mapGLMToFastGltf(glm::mat4(1.0f));
 
-        std::vector<Mesh> resVec;
-        std::vector<TextureData> resTextures;
+        std::vector<MeshSource> meshSources;
+        std::vector<TextureSource> texSources;
+        std::vector<MaterialSource> matSources;
 
+        // Pass 1: images. Indices line up 1:1 with the glTF image list, so a
+        // failed decode leaves an empty slot instead of shifting every index
+        // after it.
+        texSources.resize(asset->images.size());
+        for (size_t i = 0; i < asset->images.size(); ++i) {
+            if (auto textureSource = LoadTextureSource(asset->images[i], path.parent_path())) {
+                texSources[i] = std::move(*textureSource);
+            } else {
+                LOG_WARN(TAG, "Failed to load image at index: {}", i);
+            }
+        }
+
+        // Pass 2: materials, also 1:1 with the glTF material list.
+        matSources.resize(asset->materials.size());
+        for (size_t i = 0; i < asset->materials.size(); ++i) {
+            const auto &material = asset->materials[i];
+            matSources[i].baseColorFactor = glm::vec4(
+                material.pbrData.baseColorFactor[0],
+                material.pbrData.baseColorFactor[1],
+                material.pbrData.baseColorFactor[2],
+                material.pbrData.baseColorFactor[3]
+            );
+            matSources[i].baseColorTexture = FindBaseColorImageIndex(asset.get(), material);
+        }
+
+        // Pass 3: geometry per primitive. Materials and images are already
+        // loaded, so this only records the index and never bails out early.
         fastgltf::iterateSceneNodes(asset.get(), sceneIndex, sceneTransform, [&](fastgltf::Node &node, fastgltf::math::fmat4x4 nodeTransform) {
             auto &gltf = asset.get();
             // Process each node here
@@ -92,101 +168,59 @@ public:
                         continue;
                     }
 
-                    Geometry::MeshData res = Geometry::MeshData();
-                    res.localTransform = mapFastGltfToGLM(nodeTransform);
+                    Assets::MeshSource meshSource = Assets::MeshSource();
+                    Geometry::MeshData meshData = Geometry::MeshData();
+                    meshSource.localTransform = mapFastGltfToGLM(nodeTransform);
                     auto& posAccessor = gltf.accessors[positionAttribute->accessorIndex];
-                    res.vertices.resize(posAccessor.count);
+                    meshData.vertices.resize(posAccessor.count);
 
                     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(gltf, posAccessor,
                     [&](fastgltf::math::fvec3 pos, std::size_t index) {
-                        res.vertices[index].position = glm::vec3(pos.x(), pos.y(), pos.z());
+                        meshData.vertices[index].position = glm::vec3(pos.x(), pos.y(), pos.z());
                     });
 
                     auto& normAccessor = gltf.accessors[normalAttribute->accessorIndex];
                     fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(gltf, normAccessor,
                     [&](fastgltf::math::fvec3 norm, std::size_t index) {
-                        res.vertices[index].normal = glm::vec3(norm.x(), norm.y(), norm.z());
+                        meshData.vertices[index].normal = glm::vec3(norm.x(), norm.y(), norm.z());
                     });
 
                     auto& indexAccessorIdx = primitive.indicesAccessor;
                     if (indexAccessorIdx.has_value()) {
                         auto &indexAccessor = gltf.accessors[*indexAccessorIdx];
-                        res.indices.resize(indexAccessor.count);
+                        meshData.indices.resize(indexAccessor.count);
                         fastgltf::iterateAccessorWithIndex<std::uint32_t>(gltf, indexAccessor,
                         [&](std::uint32_t indexValue, std::size_t index) {
-                            res.indices[index] = indexValue;
+                            meshData.indices[index] = indexValue;
+                        });
+                    }
+                    // TODO: Support other TEXCOORDs
+                    auto texCoordAttribute = primitive.findAttribute("TEXCOORD_0");
+                    if (texCoordAttribute != primitive.attributes.end()) {
+                        auto &texCoordAccessor = gltf.accessors[texCoordAttribute->accessorIndex];
+                        fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec2>(gltf, texCoordAccessor,
+                        [&](fastgltf::math::fvec2 uv, std::size_t index) {
+                            meshData.vertices[index].texCoord = glm::vec2(uv.x(), uv.y());
                         });
                     }
 
-                    auto materialIndex = primitive.materialIndex;
-                    if (materialIndex.has_value()) {
-                        auto &material = gltf.materials[*materialIndex];
-                        auto resMaterial = Material();
-                        resMaterial.baseColorFactor = glm::vec4(
-                            material.pbrData.baseColorFactor[0],
-                            material.pbrData.baseColorFactor[1],
-                            material.pbrData.baseColorFactor[2],
-                            material.pbrData.baseColorFactor[3]
-                        );
-
-                        auto &textureInfoIdx = material.pbrData.baseColorTexture;
-                        if (!textureInfoIdx.has_value()) {
-                            LOG_WARN(TAG, "Material has no base color texture");
-                            continue;
-                        }
-                        auto &textureInfo = *textureInfoIdx;
-                        auto texture = gltf.textures[textureInfo.textureIndex];
-                        auto textureImageIndex = texture.imageIndex;
-                        if (!textureImageIndex.has_value()) {
-                            LOG_WARN(TAG, "Texture has no associated image");
-                            continue;
-                        }
-
-                        // open texture image and fill resTextureData
-                        auto &image = gltf.images[*textureImageIndex];
-
-                        auto textureData = std::visit<std::optional<TextureData>>(fastgltf::visitor{
-                            [&](const fastgltf::sources::URI &uriSource) {
-                                // Load the image from the URI
-                                std::string_view path = uriSource.uri.string();
-                                // TODO: Implement actual image loading from the path
-                                return LoadTextureDataFromFile(path);
-                            },
-                            [&](const fastgltf::sources::BufferView &bufferView) {
-                                // Load the image from the buffer view
-                                // TODO: Implement actual image loading from the buffer view
-                                return LoadTextureDataFromBufferView(bufferView);
-                            },
-                            [&](const fastgltf::sources::Array &arraySource) {
-                                // Load the image from the array source
-                                // TODO: Implement actual image loading from the array source
-                                return LoadTextureDataFromArray(arraySource);
-                            },
-                            [](auto) -> std::optional<TextureData> {
-                                // Handle unsupported image sources
-                                LOG_WARN("ModelLoader", "Unsupported image source");
-                                return std::nullopt;
-                            }
-                        }, image.data);
-                        
-                        // Maybe should go to a texture handler to get a unique handle for the texture
-                        if (textureData.has_value()) {
-                            resTextures.push_back(*textureData);
-                        }
-
-                        resMaterial.baseColorTextureHandle = static_cast<uint32_t>(resTextures.size() - 1);
+                    if (primitive.materialIndex.has_value()) {
+                        meshSource.materialIndex = static_cast<uint32_t>(*primitive.materialIndex);
                     }
 
-                    resVec.push_back(std::move(res));
+                    meshSource.geometry = std::move(meshData);
+                    meshSources.push_back(std::move(meshSource));
                 }
             }
         });
-        Assets::ModelData result = Assets::ModelData();
-        result.meshes = std::move(resVec);
-        result.materials = std::move(resMaterials);
+
+        Assets::ModelSource modelSource = Assets::ModelSource();
+        modelSource.meshes = std::move(meshSources);
+        modelSource.materials = std::move(matSources);
+        modelSource.textures = std::move(texSources);
 
         // Load the model using FastGltf here
-        return result;
+        return modelSource;
     }
 
 }; 

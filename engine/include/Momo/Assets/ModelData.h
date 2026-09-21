@@ -25,7 +25,9 @@ struct Mesh {
     MaterialHandle materialHandle; // Handle to the material used by this mesh
 };
 
-struct ModelData {
-    std::vector<Mesh> meshes;
+// A registered model: the meshes it owns, addressed by handle so several
+// models can share the same mesh, material or texture.
+struct Model {
+    std::vector<MeshHandle> meshes;
 };
 } // namespace Momo::Assets

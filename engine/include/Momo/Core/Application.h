@@ -7,6 +7,7 @@
 #include "Momo/Renderer/VulkanRenderer.h"
 #include "Momo/Renderer/Camera.h"
 #include "Momo/Assets/ModelLoader.h"
+#include "Momo/Assets/AssetRegistry.h"
 
 namespace Momo
 {
@@ -52,6 +53,7 @@ namespace Momo
         Renderer::VulkanRenderer m_Renderer; // Maybe this can be abstracted later
         std::vector<std::unique_ptr<Layer>> m_Layers;
         std::unique_ptr<Assets::IModelLoader> m_ModelLoader;
+        Assets::AssetRegistry m_AssetRegistry;
 
         // Scene data
         std::optional<Camera> m_Camera;

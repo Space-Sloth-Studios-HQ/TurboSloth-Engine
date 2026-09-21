@@ -17,7 +17,7 @@ public:
     ~AssetPool() = default;
 
     Handle<Tag> Add(T assetData) {
-        assets.push_back(assetData);
+        assets.push_back(std::move(assetData));
         return Handle<Tag>{static_cast<uint32_t>(assets.size() - 1)};
     }
 
