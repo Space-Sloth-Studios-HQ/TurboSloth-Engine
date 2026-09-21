@@ -6,7 +6,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 #include "Momo/Window.h"
-#include "Geometry/Vertex.h"
+#include "Momo/Geometry/Vertex.h"
 #include "VulkanMeshData.h"
 
 namespace Momo {
