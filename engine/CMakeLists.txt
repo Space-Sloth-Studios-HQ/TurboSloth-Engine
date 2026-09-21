@@ -16,6 +16,9 @@ add_library(MomoEngine STATIC
   include/Momo/Assets/AssetPool.h
   include/Momo/Assets/Handle.h
   include/Momo/Assets/AssetRegistry.h
+  src/Assets/AssetRegistry.cpp
+  include/Momo/Assets/ModelData.h
+  include/Momo/Assets/ModelSource.h
 )
 
 # Public headers are under engine/include

@@ -101,23 +101,30 @@ namespace Momo
             throw std::runtime_error("Model loader not initialized.");
         }
 
-        auto sceneMeshData = m_ModelLoader->LoadModel(path);
-        if (!sceneMeshData)
+        auto modelSource = m_ModelLoader->LoadModel(path);
+        if (!modelSource)
         {
             LOG_ERROR("Momo", "Failed to load model from path: {}", path.string());
             throw std::runtime_error("Failed to load model from path: " + path.string());
         }
 
+        // Local indices become engine-wide handles here; everything below reads
+        // the registry rather than the loader's output.
+        Assets::ModelHandle modelHandle = m_AssetRegistry.RegisterModel(*modelSource);
+
         try {
             std::vector<Renderer::VulkanMeshData> meshDataVec;
-            for (const auto& meshData : *sceneMeshData)
+            for (const auto& meshHandle : m_AssetRegistry.Get(modelHandle).meshes)
             {
+                const Assets::Mesh& mesh = m_AssetRegistry.Get(meshHandle);
                 // TODO: Consider caching vertex and index buffers to avoid recreating them for the same mesh.
                 meshDataVec.push_back(Renderer::VulkanMeshData {
-                    .m_VertexBuffer = m_Renderer.CreateVertexBuffer(meshData.vertices),
-                    .m_IndexBuffer = m_Renderer.CreateIndexBuffer(meshData.indices),
-                    .localTransform = meshData.localTransform,
-                    .baseColorFactor = meshData.baseColorFactor,
+                    .m_VertexBuffer = m_Renderer.CreateVertexBuffer(mesh.meshData.vertices),
+                    .m_IndexBuffer = m_Renderer.CreateIndexBuffer(mesh.meshData.indices),
+                    .localTransform = mesh.localTransform,
+                    .baseColorFactor = mesh.materialHandle.IsValid()
+                        ? m_AssetRegistry.Get(mesh.materialHandle).baseColorFactor
+                        : glm::vec4(1.0f),
                 });
             }
             return meshDataVec;
