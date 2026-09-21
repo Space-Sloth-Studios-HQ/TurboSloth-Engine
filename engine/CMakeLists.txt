@@ -9,7 +9,6 @@ add_library(MomoEngine STATIC
   src/Renderer/Camera.cpp
   include/Momo/Input/InputState.h
   include/Momo/Input/Key.h
-  include/Momo/ECS/Components/Transform.h
   include/Momo/Assets/ModelLoader.h
   src/Assets/ModelLoader.cpp
   include/Momo/Renderer/VulkanMeshData.h
