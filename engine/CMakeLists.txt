@@ -17,6 +17,7 @@ add_library(MomoEngine STATIC
   include/Momo/Assets/Handle.h
   include/Momo/Assets/AssetRegistry.h
   src/Assets/AssetRegistry.cpp
+  src/Assets/StbImage.cpp
   include/Momo/Assets/ModelData.h
   include/Momo/Assets/ModelSource.h
 )
@@ -41,7 +42,18 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/glfw/glfw.git
   GIT_TAG 3.4
 )
-FetchContent_MakeAvailable(fastgltf glfw)
+
+# ----------- stb (image decoding) via FetchContent -----------------
+# Header-only and has no CMakeLists, so this only downloads the headers; the
+# implementation is compiled once in src/Assets/StbImage.cpp.
+FetchContent_Declare(
+  stb
+  GIT_REPOSITORY https://github.com/nothings/stb.git
+  GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20
+)
+FetchContent_MakeAvailable(fastgltf glfw stb)
+
+target_include_directories(MomoEngine PRIVATE ${stb_SOURCE_DIR})
 
 # target_compile_definitions(MomoEngine PRIVATE glfw)
 

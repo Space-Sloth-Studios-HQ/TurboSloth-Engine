@@ -1,6 +1,7 @@
 #include "Momo/Assets/ModelLoader.h"
 #include "Momo/Logging/Logger.h"
 #include <fastgltf/core.hpp>
+#include <stb_image.h>
 #include <fastgltf/tools.hpp>
 #include <string>
 #include <variant>
@@ -28,31 +29,92 @@ private:
         return result;
     }
 
+    // Every decode path funnels through here so the pixel layout is decided in
+    // one place. Forcing 4 channels keeps uploads simple: RGB8 is not reliably
+    // supported as a sampled format on Vulkan implementations, RGBA8 always is.
+    static constexpr int RequiredChannels = 4;
+
+    std::optional<TextureSource> MakeTextureSource(stbi_uc *pixels, int width, int height) {
+        if (!pixels) {
+            return std::nullopt;
+        }
+
+        TextureSource textureSource;
+        textureSource.width = static_cast<uint32_t>(width);
+        textureSource.height = static_cast<uint32_t>(height);
+        textureSource.channels = RequiredChannels;
+        textureSource.pixels.assign(pixels,
+                                    pixels + static_cast<size_t>(width) * height * RequiredChannels);
+        stbi_image_free(pixels);
+        return textureSource;
+    }
+
     std::optional<TextureSource> LoadTextureSourceFromFile(const std::filesystem::path &path) {
-        return std::make_optional<TextureSource>();
+        int width = 0, height = 0, sourceChannels = 0;
+        stbi_uc *pixels = stbi_load(path.string().c_str(), &width, &height, &sourceChannels, RequiredChannels);
+        if (!pixels) {
+            LOG_ERROR(TAG, "stb_image failed to decode '{}': {}", path.string(), stbi_failure_reason());
+            return std::nullopt;
+        }
+        return MakeTextureSource(pixels, width, height);
     }
-    std::optional<TextureSource> LoadTextureSourceFromBufferView(const fastgltf::sources::BufferView &bufferView) {
-        return std::make_optional<TextureSource>();
+
+    std::optional<TextureSource> LoadTextureSourceFromMemory(const std::byte *bytes, size_t byteLength) {
+        int width = 0, height = 0, sourceChannels = 0;
+        stbi_uc *pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(bytes),
+                                                static_cast<int>(byteLength),
+                                                &width, &height, &sourceChannels, RequiredChannels);
+        if (!pixels) {
+            LOG_ERROR(TAG, "stb_image failed to decode embedded image: {}", stbi_failure_reason());
+            return std::nullopt;
+        }
+        return MakeTextureSource(pixels, width, height);
     }
+
     std::optional<TextureSource> LoadTextureSourceFromArray(const fastgltf::sources::Array &arraySource) {
-        return std::make_optional<TextureSource>();
+        return LoadTextureSourceFromMemory(arraySource.bytes.data(), arraySource.bytes.size());
+    }
+
+    // A buffer view points into a buffer, whose own data is another variant —
+    // hence the second visit.
+    std::optional<TextureSource> LoadTextureSourceFromBufferView(const fastgltf::Asset &gltf,
+                                                                 const fastgltf::sources::BufferView &bufferViewSource) {
+        const auto &bufferView = gltf.bufferViews[bufferViewSource.bufferViewIndex];
+        const auto &buffer = gltf.buffers[bufferView.bufferIndex];
+
+        return std::visit<std::optional<TextureSource>>(fastgltf::visitor{
+            [&](const fastgltf::sources::Array &arraySource) {
+                return LoadTextureSourceFromMemory(arraySource.bytes.data() + bufferView.byteOffset,
+                                                   bufferView.byteLength);
+            },
+            [&](const fastgltf::sources::ByteView &byteView) {
+                return LoadTextureSourceFromMemory(byteView.bytes.data() + bufferView.byteOffset,
+                                                   bufferView.byteLength);
+            },
+            [&](auto&) -> std::optional<TextureSource> {
+                LOG_WARN(TAG, "Unsupported buffer source backing an image buffer view");
+                return std::nullopt;
+            }
+        }, buffer.data);
     }
 
     // Decodes one glTF image. Images are file-level, so this runs once per
     // image no matter how many primitives end up referencing it.
-    std::optional<TextureSource> LoadTextureSource(const fastgltf::Image &image,
+    std::optional<TextureSource> LoadTextureSource(const fastgltf::Asset &gltf,
+                                                   const fastgltf::Image &image,
                                                    const std::filesystem::path &baseDir) {
         return std::visit<std::optional<TextureSource>>(fastgltf::visitor{
             [&](const fastgltf::sources::URI &uriSource) {
-                // TODO: Implement actual image loading from the path
-                return LoadTextureSourceFromFile(baseDir / std::filesystem::path(uriSource.uri.string()));
+                if (uriSource.fileByteOffset != 0) {
+                    LOG_WARN(TAG, "Image URI with a byte offset is not supported");
+                    return std::optional<TextureSource>{};
+                }
+                return LoadTextureSourceFromFile(baseDir / std::filesystem::path(uriSource.uri.fspath()));
             },
             [&](const fastgltf::sources::BufferView &bufferView) {
-                // TODO: Implement actual image loading from the buffer view
-                return LoadTextureSourceFromBufferView(bufferView);
+                return LoadTextureSourceFromBufferView(gltf, bufferView);
             },
             [&](const fastgltf::sources::Array &arraySource) {
-                // TODO: Implement actual image loading from the array source
                 return LoadTextureSourceFromArray(arraySource);
             },
             [&](auto&) -> std::optional<TextureSource> {
@@ -125,7 +187,10 @@ public:
         // after it.
         texSources.resize(asset->images.size());
         for (size_t i = 0; i < asset->images.size(); ++i) {
-            if (auto textureSource = LoadTextureSource(asset->images[i], path.parent_path())) {
+            if (auto textureSource = LoadTextureSource(asset.get(), asset->images[i], path.parent_path())) {
+                LOG_INFO(TAG, "Loaded image {}: {}x{} ({} channels, {} bytes)", i,
+                         textureSource->width, textureSource->height, textureSource->channels,
+                         textureSource->pixels.size());
                 texSources[i] = std::move(*textureSource);
             } else {
                 LOG_WARN(TAG, "Failed to load image at index: {}", i);
