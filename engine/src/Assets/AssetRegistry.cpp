@@ -29,6 +29,9 @@ ModelHandle AssetRegistry::RegisterModel(const ModelSource& source) {
         material.baseColorFactor = source.materials[i].baseColorFactor;
         if (auto textureIndex = source.materials[i].baseColorTexture) {
             material.baseColorTextureHandle = textureHandles[*textureIndex];
+        } else {
+            // TODO: Consider using a default texture or logging a warning when a material has no base color texture.
+            material.baseColorTextureHandle = TextureHandle{};
         }
         materialHandles[i] = materialAssets.Add(material);
     }
@@ -41,6 +44,9 @@ ModelHandle AssetRegistry::RegisterModel(const ModelSource& source) {
         mesh.localTransform = meshSource.localTransform;
         if (auto materialIndex = meshSource.materialIndex) {
             mesh.materialHandle = materialHandles[*materialIndex];
+        } else {
+            // TODO: Consider using a default material or logging a warning when a mesh has no material.
+            mesh.materialHandle = MaterialHandle{};
         }
         model.meshes.push_back(meshAssets.Add(std::move(mesh)));
     }

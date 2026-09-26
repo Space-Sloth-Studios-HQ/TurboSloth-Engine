@@ -181,6 +181,8 @@ namespace Renderer {
         CreateSwapChain();
         LOG_DEBUG("VulkanRenderer", "Creating image views...");
         CreateImageView();
+        LOG_DEBUG("VulkanRenderer", "Creating descriptor set layout...");
+        CreateDescriptorSetLayout();
         LOG_DEBUG("VulkanRenderer", "Creating graphics pipeline...");
         CreateGraphicsPipeline();
         LOG_DEBUG("VulkanRenderer", "Creating command pool...");
@@ -189,6 +191,58 @@ namespace Renderer {
         CreateCommandBuffer();
         LOG_DEBUG("VulkanRenderer", "Creating synchronization objects...");
         CreateSyncObjects();
+        LOG_DEBUG("VulkanRenderer", "Creating texture sampler...");
+        CreateTextureSampler();
+    }
+
+    void VulkanRenderer::CreateTextureSampler()
+    {
+        LOG_DEBUG("VulkanRenderer", "Creating texture sampler, descriptor set layout, and descriptor pool...");
+        vk::SamplerCreateInfo samplerInfo{};
+        samplerInfo.magFilter = vk::Filter::eLinear;
+        samplerInfo.minFilter = vk::Filter::eLinear;
+        samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+        samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+        samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        // samplerInfo.maxAnisotropy = 16;
+        samplerInfo.maxLod = 0;
+        // samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
+        // samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        // samplerInfo.compareEnable = VK_FALSE;
+        // samplerInfo.compareOp = vk::CompareOp::eAlways;
+        samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+
+        m_TextureSampler = vk::raii::Sampler(*m_Device, samplerInfo);
+
+    }
+
+    void VulkanRenderer::CreateDescriptorSetLayout()
+    {
+        vk::DescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding = 0;
+        samplerLayoutBinding.descriptorCount = 1;
+        samplerLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        samplerLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+        vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &samplerLayoutBinding;
+
+        m_DescriptorSetLayout = vk::raii::DescriptorSetLayout(*m_Device, layoutInfo);
+
+        vk::DescriptorPoolSize poolSize{};
+        poolSize.type = vk::DescriptorType::eCombinedImageSampler;
+        poolSize.descriptorCount = 1;
+
+        vk::DescriptorPoolCreateInfo poolInfo{};
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = 1;
+        poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+
+        m_DescriptorPool = vk::raii::DescriptorPool(*m_Device, poolInfo);
     }
 
     void VulkanRenderer::Shutdown()
@@ -197,6 +251,29 @@ namespace Renderer {
         // Explicitly reset the optional to destroy the instance now
         // This also implicitly destroys the VkPhysicalDevice so no need to set it here
         m_Device->waitIdle();
+    }
+
+    vk::raii::CommandBuffer VulkanRenderer::BeginSingleUseCommandBuffer()
+    {
+        vk::CommandBufferAllocateInfo allocInfo(
+            *m_CommandPool,                      // commandPool
+            vk::CommandBufferLevel::ePrimary,   // level - can be submitted directly to queue
+            1                                    // commandBufferCount
+        );
+
+        auto commandBuffers = vk::raii::CommandBuffers(m_Device.value(), allocInfo);
+        LOG_INFO("VulkanRenderer", "Command buffer allocated");
+        return std::move(commandBuffers[0]);
+    }
+
+    void VulkanRenderer::EndSingleUseCommandBuffer(vk::raii::CommandBuffer& commandBuffer)
+    {
+        commandBuffer.end();
+        vk::SubmitInfo submitInfo{};
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &*commandBuffer;
+        m_GraphicsQueue->submit(submitInfo);
+        m_GraphicsQueue->waitIdle();
     }
 
     void VulkanRenderer::BeginFrame(uint32_t imageIndex)
@@ -321,7 +398,7 @@ namespace Renderer {
         }
     }
 
-    void VulkanRenderer::RenderFrame(std::vector<VulkanMeshData>& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
+    void VulkanRenderer::RenderFrame(VulkanModelData& modelData, glm::mat4 viewMatrix, glm::mat4 modelMatrix)
     {
         // Implementation for rendering a single frame using Vulkan
         LOG_DEBUG("VulkanRenderer", "Rendering a frame...");
@@ -342,6 +419,7 @@ namespace Renderer {
                 m_SubOptimal = true;
             }
             BeginFrame(imageIndex);
+            m_CommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, **m_PipelineLayout, 0, {*m_DescriptorSet}, nullptr);
 
             // Draw
             m_CommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, **m_GraphicsPipeline);
@@ -353,16 +431,21 @@ namespace Renderer {
 
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
 
-            for (const auto& mesh : meshData) {
-                m_CommandBuffer->bindVertexBuffers(0, *mesh.m_VertexBuffer.buffer, {0});
-                m_CommandBuffer->bindIndexBuffer(*mesh.m_IndexBuffer.buffer, 0, vk::IndexType::eUint32);
+            for (const auto& mesh : modelData.meshes) {
+                m_CommandBuffer->bindVertexBuffers(0, *mesh.vertexBuffer.buffer, {0});
+                m_CommandBuffer->bindIndexBuffer(*mesh.indexBuffer.buffer, 0, vk::IndexType::eUint32);
                 PushConstantData pushConstantData;
                 pushConstantData.projectionMatrix = m_ProjectionMatrix;
                 pushConstantData.viewMatrix = viewMatrix;
                 pushConstantData.modelMatrix = modelMatrix * mesh.localTransform; // Move to GPU..?
                 pushConstantData.baseColorFactor = mesh.baseColorFactor;
-                m_CommandBuffer->pushConstants<PushConstantData>(**m_PipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, pushConstantData);
-                m_CommandBuffer->drawIndexed(mesh.m_IndexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
+                m_CommandBuffer->pushConstants<PushConstantData>(
+                    **m_PipelineLayout, 
+                    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 
+                    0,
+                    pushConstantData
+                );
+                m_CommandBuffer->drawIndexed(mesh.indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
             }
             
 
@@ -393,6 +476,149 @@ namespace Renderer {
     AllocatedBuffer VulkanRenderer::CreateIndexBuffer(const std::vector<uint32_t>& indices)
     {
         return CreateBuffer(indices.data(), sizeof(uint32_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
+    }
+
+    AllocatedImage VulkanRenderer::CreateTextureImage(const Assets::TextureData& texture)
+    {
+        auto stagingBuffer = CreateTextureStagingBuffer(texture);
+        auto image = vk::raii::Image(*m_Device, vk::ImageCreateInfo(
+            {},
+            vk::ImageType::e2D,
+            vk::Format::eR8G8B8A8Srgb,
+            vk::Extent3D{ texture.width, texture.height, 1 },
+            1,
+            1,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+            vk::SharingMode::eExclusive,
+            0,
+            nullptr,
+            vk::ImageLayout::eUndefined
+        ));
+        vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
+        uint32_t memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, 
+            vk::MemoryPropertyFlagBits::eDeviceLocal);
+        auto imageMemory = vk::raii::DeviceMemory(*m_Device, vk::MemoryAllocateInfo(
+            memRequirements.size, memoryTypeIndex
+        ));
+        image.bindMemory(*imageMemory, 0);
+
+        vk::ImageViewCreateInfo viewInfo(
+            {},
+            *image,
+            vk::ImageViewType::e2D,
+            vk::Format::eR8G8B8A8Srgb,
+            {},
+            vk::ImageSubresourceRange(
+                vk::ImageAspectFlagBits::eColor,
+                0, 1,
+                0, 1
+            )
+        );
+        auto imageView = vk::raii::ImageView(*m_Device, viewInfo);
+
+        // Allocate descriptor set
+        vk::DescriptorSetAllocateInfo allocInfo{};
+        allocInfo.descriptorPool = **m_DescriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &**m_DescriptorSetLayout;
+
+        auto sets = vk::raii::DescriptorSets(*m_Device, allocInfo);
+        m_DescriptorSet = std::move(sets.front());
+
+        vk::DescriptorImageInfo imageInfo = vk::DescriptorImageInfo(
+            *m_TextureSampler,
+            *imageView,
+            vk::ImageLayout::eShaderReadOnlyOptimal
+        );
+
+        vk::WriteDescriptorSet descriptorWrite = vk::WriteDescriptorSet();
+        descriptorWrite.dstSet = *m_DescriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pImageInfo = &imageInfo;
+
+
+        m_Device->updateDescriptorSets({descriptorWrite}, {});
+
+
+        auto commandBuffer = BeginSingleUseCommandBuffer();
+        commandBuffer.begin({
+            vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        });
+
+        vk::ImageMemoryBarrier2 beforeCopyBarrier{};
+        beforeCopyBarrier.srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe;
+        beforeCopyBarrier.srcAccessMask = {};
+        beforeCopyBarrier.dstStageMask = vk::PipelineStageFlagBits2::eCopy;
+        beforeCopyBarrier.dstAccessMask = vk::AccessFlagBits2::eTransferWrite;
+        beforeCopyBarrier.oldLayout = vk::ImageLayout::eUndefined;
+        beforeCopyBarrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
+        beforeCopyBarrier.image = *image;
+        beforeCopyBarrier.subresourceRange = {
+            vk::ImageAspectFlagBits::eColor, // aspectMask
+            0,                                // baseMipLevel
+            1,                                // levelCount
+            0,                                // baseArrayLayer
+            1                                 // layerCount
+        };
+        auto beforeCopyDependencyInfo = vk::DependencyInfo();
+        vk::ImageMemoryBarrier2 imageBarriers[] = { beforeCopyBarrier };
+        beforeCopyDependencyInfo.setImageMemoryBarrierCount(1);
+        beforeCopyDependencyInfo.setImageMemoryBarriers(imageBarriers);
+
+        vk::ImageMemoryBarrier2 afterCopyBarrier{};
+        afterCopyBarrier.srcStageMask = vk::PipelineStageFlagBits2::eCopy;
+        afterCopyBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+        afterCopyBarrier.dstStageMask = vk::PipelineStageFlagBits2::eFragmentShader;
+        afterCopyBarrier.dstAccessMask = vk::AccessFlagBits2::eShaderRead;
+        afterCopyBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        afterCopyBarrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        afterCopyBarrier.image = *image;
+        afterCopyBarrier.subresourceRange = {
+            vk::ImageAspectFlagBits::eColor, // aspectMask
+            0,                                // baseMipLevel
+            1,                                // levelCount
+            0,                                // baseArrayLayer
+            1                                 // layerCount
+        };
+        auto afterCopyDependencyInfo = vk::DependencyInfo();
+        vk::ImageMemoryBarrier2 imageBarriers2[] = { afterCopyBarrier };
+        afterCopyDependencyInfo.setImageMemoryBarrierCount(1);
+        afterCopyDependencyInfo.setImageMemoryBarriers(imageBarriers2);
+
+        commandBuffer.pipelineBarrier2(beforeCopyDependencyInfo);
+        // copy buffer to image 
+        vk::BufferImageCopy copyRegion(
+            0,
+            0,
+            0,
+            vk::ImageSubresourceLayers(
+                vk::ImageAspectFlagBits::eColor,
+                0,
+                0,
+                1
+            ),
+            vk::Offset3D{ 0, 0, 0 },
+            vk::Extent3D{ texture.width, texture.height, 1 }
+        );
+        commandBuffer.copyBufferToImage(
+            stagingBuffer.buffer,
+            image,
+            vk::ImageLayout::eTransferDstOptimal,
+            copyRegion
+        );
+
+        commandBuffer.pipelineBarrier2(afterCopyDependencyInfo);
+        EndSingleUseCommandBuffer(commandBuffer);
+        return AllocatedImage{ std::move(imageMemory), std::move(image), std::move(imageView) };
+    }
+
+    AllocatedBuffer VulkanRenderer::CreateTextureStagingBuffer(const Assets::TextureData& texture)
+    {
+        return CreateBuffer(texture.pixelData.data(), sizeof(uint8_t) * texture.pixelData.size(), vk::BufferUsageFlagBits::eTransferSrc, static_cast<uint32_t>(texture.pixelData.size()));
     }
 
     AllocatedImage VulkanRenderer::CreateDepthBuffer()
@@ -584,14 +810,14 @@ namespace Renderer {
         // 9. PIPELINE LAYOUT - Describes shader resource bindings (uniforms, etc.)
         // ═══════════════════════════════════════════════════════════
         auto pushConstantRange = vk::PushConstantRange(
-            vk::ShaderStageFlagBits::eVertex, // stageFlags
+            vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, // stageFlags
             0,                                 // offset
             static_cast<uint32_t>(sizeof(PushConstantData))                  // size
         );
 
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo(
             {},         // flags
-            0, nullptr, // setLayoutCount, pSetLayouts (descriptor sets)
+            1, &**m_DescriptorSetLayout, // setLayoutCount, pSetLayouts (descriptor sets)
             1, &pushConstantRange // pushConstantRangeCount, pPushConstantRanges
         );
         m_PipelineLayout = vk::raii::PipelineLayout(m_Device.value(), pipelineLayoutInfo);

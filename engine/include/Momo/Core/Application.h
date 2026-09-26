@@ -47,7 +47,7 @@ namespace Momo
         ApplicationSpecification m_Spec{};
         bool m_Running = true;
         bool m_IsShutdown = false;
-        std::vector<Renderer::VulkanMeshData> LoadMesh(const std::filesystem::path &path);
+        Renderer::VulkanModelData LoadMesh(const std::filesystem::path &path);
 
         std::unique_ptr<IWindow> m_Window;
         Renderer::VulkanRenderer m_Renderer; // Maybe this can be abstracted later
@@ -57,6 +57,6 @@ namespace Momo
 
         // Scene data
         std::optional<Camera> m_Camera;
-        std::optional<std::vector<Renderer::VulkanMeshData>> m_Mesh; // TODO: Should be a full scene object as active scene
+        std::optional<Renderer::VulkanModelData> m_Mesh; // TODO: Should be a full scene object as active scene
     };
 }

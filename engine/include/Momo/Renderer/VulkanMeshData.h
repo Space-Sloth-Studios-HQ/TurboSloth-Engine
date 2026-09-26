@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_raii.hpp>
 #include <cstdint>
+#include <optional>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 
@@ -30,10 +31,16 @@ struct AllocatedBuffer
 
 struct VulkanMeshData
 {
-    AllocatedBuffer m_VertexBuffer;
-    AllocatedBuffer m_IndexBuffer;
+    AllocatedBuffer vertexBuffer;
+    AllocatedBuffer indexBuffer;
     glm::mat4 localTransform;
     glm::vec4 baseColorFactor;
+};
+
+struct VulkanModelData
+{
+    std::vector<VulkanMeshData> meshes;
+    std::optional<AllocatedImage> textureImage;
 };
 } // namespace Renderer
 } // namespace Momo

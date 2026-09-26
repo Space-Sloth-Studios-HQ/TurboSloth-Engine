@@ -93,7 +93,7 @@ namespace Momo
         LOG_INFO("Momo", "Shutdown complete.");
     }
 
-    std::vector<Renderer::VulkanMeshData> Application::LoadMesh(const std::filesystem::path &path)
+    Renderer::VulkanModelData Application::LoadMesh(const std::filesystem::path &path)
     {
         if (!m_ModelLoader)
         {
@@ -113,21 +113,26 @@ namespace Momo
         Assets::ModelHandle modelHandle = m_AssetRegistry.RegisterModel(*modelSource);
 
         try {
-            std::vector<Renderer::VulkanMeshData> meshDataVec;
+            Renderer::VulkanModelData modelData;
             for (const auto& meshHandle : m_AssetRegistry.Get(modelHandle).meshes)
             {
                 const Assets::Mesh& mesh = m_AssetRegistry.Get(meshHandle);
+                const Assets::Material& material = m_AssetRegistry.Get(mesh.materialHandle);
+
                 // TODO: Consider caching vertex and index buffers to avoid recreating them for the same mesh.
-                meshDataVec.push_back(Renderer::VulkanMeshData {
-                    .m_VertexBuffer = m_Renderer.CreateVertexBuffer(mesh.meshData.vertices),
-                    .m_IndexBuffer = m_Renderer.CreateIndexBuffer(mesh.meshData.indices),
+                modelData.meshes.push_back(Renderer::VulkanMeshData {
+                    .vertexBuffer = m_Renderer.CreateVertexBuffer(mesh.meshData.vertices),
+                    .indexBuffer = m_Renderer.CreateIndexBuffer(mesh.meshData.indices),
                     .localTransform = mesh.localTransform,
                     .baseColorFactor = mesh.materialHandle.IsValid()
                         ? m_AssetRegistry.Get(mesh.materialHandle).baseColorFactor
-                        : glm::vec4(1.0f),
+                        : glm::vec4(0.5f, 0.1f, 0.7f, 1.0f),
                 });
+
+                const Assets::TextureData& texture = m_AssetRegistry.Get(material.baseColorTextureHandle);
+                modelData.textureImage = m_Renderer.CreateTextureImage(texture);
             }
-            return meshDataVec;
+            return modelData;
         } catch (const std::exception& e) {
             LOG_ERROR("Momo", "Exception occurred while loading mesh: {}", e.what());
             throw;

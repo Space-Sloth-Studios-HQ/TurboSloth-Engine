@@ -19,9 +19,12 @@ private:
 
     std::unordered_map<std::string, TextureHandle> texturesByPath;
 public:
-    // Add your asset registry methods here
+    // TODO: Handle default TextureData for missing textures
     const TextureData& Get(TextureHandle handle) const { return textureAssets.Get(handle); }
+    // TODO: Handle default Material for missing materials
     const Material& Get(MaterialHandle handle) const { return materialAssets.Get(handle); }
+
+    // Missing meshes is genuinely an error and should be handled appropriately.
     const Mesh& Get(MeshHandle handle) const { return meshAssets.Get(handle); }
     const Model& Get(ModelHandle handle) const { return modelAssets.Get(handle); }
 

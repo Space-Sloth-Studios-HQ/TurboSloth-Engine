@@ -3,11 +3,13 @@
 #include <vector>
 #include <optional>
 #include <cstdint>
+#include <unordered_map>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 #include "Momo/Window.h"
 #include "Momo/Geometry/Vertex.h"
 #include "VulkanMeshData.h"
+#include "Momo/Assets/ModelData.h"
 
 namespace Momo {
 namespace Renderer {
@@ -17,10 +19,11 @@ class VulkanRenderer
 public:
     void Init(const IWindow& window);
     void Shutdown();
-    void RenderFrame(std::vector<VulkanMeshData>& meshData, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
+    void RenderFrame(Renderer::VulkanModelData& modelData, glm::mat4 viewMatrix, glm::mat4 modelMatrix);
 
     AllocatedBuffer CreateVertexBuffer(const std::vector<Momo::Geometry::Vertex>& vertices);
     AllocatedBuffer CreateIndexBuffer(const std::vector<uint32_t>& indices);
+    AllocatedImage  CreateTextureImage(const Assets::TextureData& texture);
 private:
     void CreateInstance();
     void PickPhysicalDevice();
@@ -36,6 +39,8 @@ private:
     void CreateImageAvailableSemaphore();
     void CreateInFlightFence();
     void CreateRenderFinishedSemaphores();
+    void CreateTextureSampler();
+    void CreateDescriptorSetLayout();
 
     void BeginFrame(uint32_t imageIndex);
     void EndFrame(uint32_t imageIndex);
@@ -45,6 +50,11 @@ private:
 
     AllocatedBuffer CreateBuffer(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, uint32_t indexCount);
     AllocatedImage  CreateDepthBuffer();
+
+    AllocatedBuffer CreateTextureStagingBuffer(const Assets::TextureData& texture);
+
+    vk::raii::CommandBuffer BeginSingleUseCommandBuffer();
+    void EndSingleUseCommandBuffer(vk::raii::CommandBuffer& commandBuffer);
 
     const IWindow* m_Window = nullptr;
     vk::raii::Context  m_Context;
@@ -83,6 +93,15 @@ private:
     // Depth buffer resources
     vk::Format m_DepthFormat;
     std::optional<AllocatedImage> m_DepthBuffer;
+
+    // Texture Image resources
+    std::optional<vk::raii::Sampler> m_TextureSampler;
+    std::optional<vk::raii::DescriptorSetLayout> m_DescriptorSetLayout;
+    std::optional<vk::raii::DescriptorPool> m_DescriptorPool;
+    std::optional<vk::raii::DescriptorSet> m_DescriptorSet;
+
+    std::unordered_map<Assets::TextureHandle, AllocatedImage>           m_TextureCache;
+    std::unordered_map<Assets::MaterialHandle, vk::raii::DescriptorSet> m_MaterialDescriptorSets;
 
     // Intended for use when setting up Vulkan validation layers in instance creation.
     std::vector<char const*> m_ValidationLayers = {

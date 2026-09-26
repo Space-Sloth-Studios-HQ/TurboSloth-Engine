@@ -15,13 +15,13 @@ struct TextureData {
 };
 
 struct Material {
-    glm::vec4 baseColorFactor; // Should be Material
+    glm::vec4 baseColorFactor = glm::vec4(0.0f);
     TextureHandle baseColorTextureHandle; // Handle to the base color texture for the material
 };
 
 struct Mesh {
     Geometry::MeshData meshData;
-    glm::mat4 localTransform;
+    glm::mat4 localTransform = glm::mat4(1.0f);
     MaterialHandle materialHandle; // Handle to the material used by this mesh
 };
 

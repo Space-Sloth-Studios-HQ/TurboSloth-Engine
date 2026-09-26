@@ -1,13 +1,16 @@
 struct VertexInput {
     [vk::location(0)] float3 position : POSITION;
-    [vk::location(1)] float3 color    : COLOR;
-    [vk::location(2)] float3 normal   : NORMAL;
+    [vk::location(1)] float3 normal   : NORMAL;
+    [vk::location(2)] float2 texCoord : TEXCOORD;
 };
+
+[vk::binding(0, 0)] Sampler2D baseColorTexture;
 
 struct VertexOutput {
     float4 color;
     float4 sv_position : SV_Position;
     float3 worldNormal;
+    float2 texCoord;
 };
 
 struct PushConstants {
@@ -28,6 +31,7 @@ VertexOutput vertMain(VertexInput input) {
     output.color = pc.baseColorFactor;
     // output.color = float3(0.5, 1.0, 0.3);
     output.worldNormal = mul((float3x3)pc.model, input.normal);
+    output.texCoord = input.texCoord;
     return output;
 }
 
@@ -35,6 +39,6 @@ VertexOutput vertMain(VertexInput input) {
 float4 fragMain(VertexOutput inVert) : SV_Target
 {
     float ndot1 = max(dot(normalize(inVert.worldNormal), lightDir), 0.0);
-    float4 color = inVert.color * (0.15 + 0.85 * ndot1);
+    float4 color = baseColorTexture.Sample(inVert.texCoord) * pc.baseColorFactor;
     return color;
 }
