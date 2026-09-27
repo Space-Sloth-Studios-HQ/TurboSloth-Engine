@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <cstdint>
 #include <optional>
+#include "Momo/Assets/Handle.h"
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 
@@ -21,6 +22,8 @@ struct AllocatedImage
     vk::raii::DeviceMemory memory;
     vk::raii::Image image;
     vk::raii::ImageView imageView;
+    uint32_t width;
+    uint32_t height;
 };
 struct AllocatedBuffer
 {
@@ -29,18 +32,30 @@ struct AllocatedBuffer
     uint32_t indexCount;
 };
 
-struct VulkanMeshData
+struct VulkanTextureData
+{
+    std::optional<AllocatedImage> textureImage;
+    Assets::TextureHandle textureHandle;
+};
+
+struct GPUMesh
 {
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;
+};
+
+struct VulkanMeshData
+{
+    const GPUMesh& gpuMesh;
     glm::mat4 localTransform;
     glm::vec4 baseColorFactor;
+    Assets::MaterialHandle materialHandle;
 };
 
 struct VulkanModelData
 {
     std::vector<VulkanMeshData> meshes;
-    std::optional<AllocatedImage> textureImage;
+    // std::optional<AllocatedImage> textureImage;
 };
 } // namespace Renderer
 } // namespace Momo

@@ -9,17 +9,16 @@
 namespace Momo
 {
     Application::Application(const ApplicationSpecification& spec)
-        : m_Spec(spec)
+        : m_Spec(spec),
+          m_MeshCache(m_AssetRegistry, m_Renderer),
+          m_TextureCache(m_AssetRegistry, m_Renderer)
     {
         LOG_INFO("Momo", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
         m_ModelLoader = std::unique_ptr<Assets::IModelLoader>(Assets::IModelLoader::CreateGltfModelLoader());
 
-        // Scene loading
-        // m_Mesh = LoadMesh("Assets/Models/Panko/PANKO_Rigged.glb");
-        m_Mesh = LoadMesh("Assets/Models/Duck/Duck.gltf");
-        m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+        LoadScene(""); // TODO: Replace with actual scene path
     }
 
     Application::~Application()
@@ -33,41 +32,80 @@ namespace Momo
         }
     }
 
+    void Application::LoadScene(const std::filesystem::path &path)
+    {
+        // const std::filesystem::path modelPath = "Assets/Models/Duck/Duck.gltf";
+        const std::filesystem::path modelPath = "Assets/Models/PANKO/PANKO_Rigged.glb";
+        m_ActiveScene = Scene();
+        auto modelSource = m_ModelLoader->LoadModel(modelPath);
+        if (!modelSource.has_value()) {
+            LOG_ERROR("Momo", "Failed to load model from path: Assets/Models/PANKO/PANKO_Rigged.glb");
+            return;
+        }
+        Assets::ModelHandle handle = m_AssetRegistry.RegisterModel(*modelSource);
+        m_ActiveScene->AddModel(handle);
+        m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+    }
+
     void Application::Run()
     {
         using clock = std::chrono::steady_clock;
         auto last = clock::now();
-
-        float totalTime = 0.0f;
-        float cubeRotationSpeed = 1.0f; // radians per second
 
 
         while (m_Running && !m_Window->ShouldClose())
         {
             auto now = clock::now();
             float dt = std::chrono::duration<float>(now - last).count();
-            totalTime += dt;
+            m_TotalTime += dt;
             LOG_INFO("Momo", "Frame time: {}", dt);
             last = now;
 
             m_Window->PollEvents();
-            Input::InputState inputState = m_Window->ReadInput();
+            m_InputState = m_Window->ReadInput();
 
             for (auto& layer : m_Layers)
                 layer->OnUpdate(dt);
 
-            // TODO: Should be a dedicated entity.OnUpdate(dt) call instead of directly manipulating the model matrix here
-            glm::vec3 rotationAxis = glm::normalize(glm::vec3(0.5f, 1.0f, 0.0f));
-            glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), totalTime * cubeRotationSpeed, rotationAxis);
-            LOG_TRACE("Momo", "Model matrix: {}", glm::to_string(modelMatrix));
-
-            m_Camera->OnUpdate(dt, inputState);
-
-            m_Renderer.RenderFrame(*m_Mesh, m_Camera->GetViewMatrix(), modelMatrix);
-
+            m_Camera->OnUpdate(dt, m_InputState);
+            Draw(dt);
             // crude temporary limiter so the console doesn't spam
             // std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
+    }
+
+    void Application::Draw(float dt)
+    {
+        // TODO: Should be a dedicated entity.OnUpdate(dt) call instead of directly manipulating the model matrix here
+        // Construct VulkanModelData for each scene
+        if (!m_ActiveScene.has_value()) {
+            LOG_ERROR("Momo", "No active scene loaded.");
+            return;
+        }
+
+        Renderer::VulkanModelData vulkanModelData{};
+        const Assets::ModelHandle& modelHandle = m_ActiveScene->GetModels().front(); // TODO: Handle multiple models and empty scene cases
+        for (const auto& meshHandle : m_AssetRegistry.Get(modelHandle).meshes)
+        {
+            const Assets::Mesh& mesh = m_AssetRegistry.Get(meshHandle);
+            const Assets::Material& material = m_AssetRegistry.Get(mesh.materialHandle);
+
+            vulkanModelData.meshes.push_back(Renderer::VulkanMeshData {
+                .gpuMesh = m_MeshCache.GetOrCreate(meshHandle),
+                .localTransform = mesh.localTransform,
+                .baseColorFactor = mesh.materialHandle.IsValid()
+                    ? m_AssetRegistry.Get(mesh.materialHandle).baseColorFactor
+                    : glm::vec4(0.5f, 0.1f, 0.7f, 1.0f),
+                .materialHandle = mesh.materialHandle,
+            });
+
+            m_TextureCache.GetOrCreate(material.baseColorTextureHandle);
+        }
+        glm::vec3 rotationAxis = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), m_TotalTime * m_CubeRotationSpeed, rotationAxis);
+        LOG_TRACE("Momo", "Model matrix: {}", glm::to_string(modelMatrix));
+
+        m_Renderer.RenderFrame(vulkanModelData, m_Camera->GetViewMatrix(), modelMatrix);
     }
 
     void Application::Shutdown()
@@ -119,18 +157,8 @@ namespace Momo
                 const Assets::Mesh& mesh = m_AssetRegistry.Get(meshHandle);
                 const Assets::Material& material = m_AssetRegistry.Get(mesh.materialHandle);
 
-                // TODO: Consider caching vertex and index buffers to avoid recreating them for the same mesh.
-                modelData.meshes.push_back(Renderer::VulkanMeshData {
-                    .vertexBuffer = m_Renderer.CreateVertexBuffer(mesh.meshData.vertices),
-                    .indexBuffer = m_Renderer.CreateIndexBuffer(mesh.meshData.indices),
-                    .localTransform = mesh.localTransform,
-                    .baseColorFactor = mesh.materialHandle.IsValid()
-                        ? m_AssetRegistry.Get(mesh.materialHandle).baseColorFactor
-                        : glm::vec4(0.5f, 0.1f, 0.7f, 1.0f),
-                });
-
-                const Assets::TextureData& texture = m_AssetRegistry.Get(material.baseColorTextureHandle);
-                modelData.textureImage = m_Renderer.CreateTextureImage(texture);
+                m_MeshCache.GetOrCreate(meshHandle);
+                m_TextureCache.GetOrCreate(material.baseColorTextureHandle);
             }
             return modelData;
         } catch (const std::exception& e) {

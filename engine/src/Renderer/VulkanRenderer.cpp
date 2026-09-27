@@ -262,8 +262,12 @@ namespace Renderer {
         );
 
         auto commandBuffers = vk::raii::CommandBuffers(m_Device.value(), allocInfo);
+        auto commandBuffer = std::move(commandBuffers[0]);
+        commandBuffer.begin({
+            vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        });
         LOG_INFO("VulkanRenderer", "Command buffer allocated");
-        return std::move(commandBuffers[0]);
+        return commandBuffer;
     }
 
     void VulkanRenderer::EndSingleUseCommandBuffer(vk::raii::CommandBuffer& commandBuffer)
@@ -432,8 +436,8 @@ namespace Renderer {
             m_CommandBuffer->setScissor(0, vk::Rect2D({0, 0}, m_SwapchainExtent));
 
             for (const auto& mesh : modelData.meshes) {
-                m_CommandBuffer->bindVertexBuffers(0, *mesh.vertexBuffer.buffer, {0});
-                m_CommandBuffer->bindIndexBuffer(*mesh.indexBuffer.buffer, 0, vk::IndexType::eUint32);
+                m_CommandBuffer->bindVertexBuffers(0, *mesh.gpuMesh.vertexBuffer.buffer, {0});
+                m_CommandBuffer->bindIndexBuffer(*mesh.gpuMesh.indexBuffer.buffer, 0, vk::IndexType::eUint32);
                 PushConstantData pushConstantData;
                 pushConstantData.projectionMatrix = m_ProjectionMatrix;
                 pushConstantData.viewMatrix = viewMatrix;
@@ -445,7 +449,7 @@ namespace Renderer {
                     0,
                     pushConstantData
                 );
-                m_CommandBuffer->drawIndexed(mesh.indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
+                m_CommandBuffer->drawIndexed(mesh.gpuMesh.indexBuffer.indexCount, 1, 0, 0, 0); // Draw a quad using indices
             }
             
 
@@ -478,9 +482,17 @@ namespace Renderer {
         return CreateBuffer(indices.data(), sizeof(uint32_t) * indices.size(), vk::BufferUsageFlagBits::eIndexBuffer, static_cast<uint32_t>(indices.size()));
     }
 
-    AllocatedImage VulkanRenderer::CreateTextureImage(const Assets::TextureData& texture)
+    AllocatedImage VulkanRenderer::CreateAndSubmitTextureImage(const Assets::TextureData& texture)
     {
         auto stagingBuffer = CreateTextureStagingBuffer(texture);
+        auto textureImage = CreateTextureImage(texture);
+        AllocateDescriptorSet(textureImage.imageView);
+        SubmitTextureImage(stagingBuffer, textureImage);
+        return textureImage;
+    }
+
+    AllocatedImage VulkanRenderer::CreateTextureImage(const Assets::TextureData& texture)
+    {
         auto image = vk::raii::Image(*m_Device, vk::ImageCreateInfo(
             {},
             vk::ImageType::e2D,
@@ -518,6 +530,11 @@ namespace Renderer {
         );
         auto imageView = vk::raii::ImageView(*m_Device, viewInfo);
 
+        return AllocatedImage{ std::move(imageMemory), std::move(image), std::move(imageView), texture.width, texture.height };
+    }
+
+    void VulkanRenderer::AllocateDescriptorSet(const vk::raii::ImageView& imageView) 
+    {
         // Allocate descriptor set
         vk::DescriptorSetAllocateInfo allocInfo{};
         allocInfo.descriptorPool = **m_DescriptorPool;
@@ -540,14 +557,13 @@ namespace Renderer {
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pImageInfo = &imageInfo;
 
-
         m_Device->updateDescriptorSets({descriptorWrite}, {});
+    }
 
-
+    void VulkanRenderer::SubmitTextureImage(const AllocatedBuffer& stagingBuffer, const AllocatedImage& textureImage) 
+    {
         auto commandBuffer = BeginSingleUseCommandBuffer();
-        commandBuffer.begin({
-            vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-        });
+        auto image = &textureImage.image;
 
         vk::ImageMemoryBarrier2 beforeCopyBarrier{};
         beforeCopyBarrier.srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe;
@@ -602,18 +618,17 @@ namespace Renderer {
                 1
             ),
             vk::Offset3D{ 0, 0, 0 },
-            vk::Extent3D{ texture.width, texture.height, 1 }
+            vk::Extent3D{ textureImage.width, textureImage.height, 1 }
         );
         commandBuffer.copyBufferToImage(
             stagingBuffer.buffer,
-            image,
+            *image,
             vk::ImageLayout::eTransferDstOptimal,
             copyRegion
         );
 
         commandBuffer.pipelineBarrier2(afterCopyDependencyInfo);
         EndSingleUseCommandBuffer(commandBuffer);
-        return AllocatedImage{ std::move(imageMemory), std::move(image), std::move(imageView) };
     }
 
     AllocatedBuffer VulkanRenderer::CreateTextureStagingBuffer(const Assets::TextureData& texture)

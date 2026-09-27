@@ -11,13 +11,6 @@
 namespace Momo::Assets {
 class AssetRegistry
 {
-private:
-    AssetPool<TextureData, TextureTag> textureAssets;
-    AssetPool<Material, MaterialTag> materialAssets;
-    AssetPool<Mesh, MeshTag> meshAssets;
-    AssetPool<Model, ModelTag> modelAssets;
-
-    std::unordered_map<std::string, TextureHandle> texturesByPath;
 public:
     // TODO: Handle default TextureData for missing textures
     const TextureData& Get(TextureHandle handle) const { return textureAssets.Get(handle); }
@@ -32,6 +25,14 @@ public:
     // the only place local ModelSource indices become engine-wide handles:
     // textures first, then materials that reference them, then meshes.
     ModelHandle RegisterModel(const ModelSource& source);
+
+private:
+    AssetPool<TextureData, TextureTag> textureAssets;
+    AssetPool<Material, MaterialTag> materialAssets;
+    AssetPool<Mesh, MeshTag> meshAssets;
+    AssetPool<Model, ModelTag> modelAssets;
+
+    std::unordered_map<std::string, TextureHandle> texturesByPath;
 };
 
 } // namespace Momo::Assets

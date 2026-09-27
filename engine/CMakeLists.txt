@@ -20,6 +20,9 @@ add_library(MomoEngine STATIC
   src/Assets/StbImage.cpp
   include/Momo/Assets/ModelData.h
   include/Momo/Assets/ModelSource.h
+  include/Momo/Cache/DataCache.h
+  include/Momo/Cache/DataCache.h
+  include/Momo/Core/Scene.h
 )
 
 # Public headers are under engine/include

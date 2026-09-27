@@ -3,7 +3,6 @@
 #include <vector>
 #include <optional>
 #include <cstdint>
-#include <unordered_map>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // Vulkan depth [0, 1] range
 #include <glm/glm.hpp>
 #include "Momo/Window.h"
@@ -23,7 +22,7 @@ public:
 
     AllocatedBuffer CreateVertexBuffer(const std::vector<Momo::Geometry::Vertex>& vertices);
     AllocatedBuffer CreateIndexBuffer(const std::vector<uint32_t>& indices);
-    AllocatedImage  CreateTextureImage(const Assets::TextureData& texture);
+    AllocatedImage  CreateAndSubmitTextureImage(const Assets::TextureData& texture);
 private:
     void CreateInstance();
     void PickPhysicalDevice();
@@ -52,6 +51,9 @@ private:
     AllocatedImage  CreateDepthBuffer();
 
     AllocatedBuffer CreateTextureStagingBuffer(const Assets::TextureData& texture);
+    AllocatedImage  CreateTextureImage(const Assets::TextureData& texture);
+    void AllocateDescriptorSet(const vk::raii::ImageView& imageView);
+    void SubmitTextureImage(const AllocatedBuffer& stagingBuffer, const AllocatedImage& textureImage);
 
     vk::raii::CommandBuffer BeginSingleUseCommandBuffer();
     void EndSingleUseCommandBuffer(vk::raii::CommandBuffer& commandBuffer);
@@ -99,9 +101,6 @@ private:
     std::optional<vk::raii::DescriptorSetLayout> m_DescriptorSetLayout;
     std::optional<vk::raii::DescriptorPool> m_DescriptorPool;
     std::optional<vk::raii::DescriptorSet> m_DescriptorSet;
-
-    std::unordered_map<Assets::TextureHandle, AllocatedImage>           m_TextureCache;
-    std::unordered_map<Assets::MaterialHandle, vk::raii::DescriptorSet> m_MaterialDescriptorSets;
 
     // Intended for use when setting up Vulkan validation layers in instance creation.
     std::vector<char const*> m_ValidationLayers = {
