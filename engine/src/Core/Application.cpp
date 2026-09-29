@@ -35,11 +35,15 @@ namespace Momo
     void Application::LoadScene(const std::filesystem::path &path)
     {
         // const std::filesystem::path modelPath = "Assets/Models/Duck/Duck.gltf";
-        const std::filesystem::path modelPath = "Assets/Models/PANKO/PANKO_Rigged.glb";
+        const std::filesystem::path modelPath = "Assets/Models/Panko/PANKO_Rigged.glb";
+        if (!std::filesystem::exists(modelPath)) {
+            LOG_ERROR("Momo", "Model file does not exist: {}", modelPath.generic_string());
+            return;
+        }
         m_ActiveScene = Scene();
         auto modelSource = m_ModelLoader->LoadModel(modelPath);
         if (!modelSource.has_value()) {
-            LOG_ERROR("Momo", "Failed to load model from path: Assets/Models/PANKO/PANKO_Rigged.glb");
+            LOG_ERROR("Momo", "Failed to load model from path: {}", modelPath.generic_string());
             return;
         }
         Assets::ModelHandle handle = m_AssetRegistry.RegisterModel(*modelSource);
