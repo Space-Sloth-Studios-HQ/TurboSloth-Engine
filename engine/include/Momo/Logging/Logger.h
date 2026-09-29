@@ -3,6 +3,7 @@
 #include <string_view>
 #include <format>
 #include <mutex>
+#include <atomic>
 
 namespace Momo
 {

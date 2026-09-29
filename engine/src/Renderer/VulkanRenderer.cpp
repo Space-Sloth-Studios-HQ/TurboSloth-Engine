@@ -9,6 +9,7 @@
 #include <cstring>
 #include <set>
 #include <algorithm>
+#include <array>
 
 #ifdef NDEBUG
     constexpr bool enableValidationLayers = false;
