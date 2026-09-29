@@ -24,7 +24,8 @@ public:
     // Registers everything a loader produced and hands back the model. This is
     // the only place local ModelSource indices become engine-wide handles:
     // textures first, then materials that reference them, then meshes.
-    ModelHandle RegisterModel(const ModelSource& source);
+    // Consumes the source: pixel and geometry buffers are moved into the pools.
+    ModelHandle RegisterModel(ModelSource&& source);
 
 private:
     AssetPool<TextureData, TextureTag> textureAssets;

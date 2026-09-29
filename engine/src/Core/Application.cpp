@@ -46,7 +46,7 @@ namespace Momo
             LOG_ERROR("Momo", "Failed to load model from path: {}", modelPath.generic_string());
             return;
         }
-        Assets::ModelHandle handle = m_AssetRegistry.RegisterModel(*modelSource);
+        Assets::ModelHandle handle = m_AssetRegistry.RegisterModel(std::move(*modelSource));
         m_ActiveScene->AddModel(handle);
         m_Camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
     }
@@ -152,7 +152,7 @@ namespace Momo
 
         // Local indices become engine-wide handles here; everything below reads
         // the registry rather than the loader's output.
-        Assets::ModelHandle modelHandle = m_AssetRegistry.RegisterModel(*modelSource);
+        Assets::ModelHandle modelHandle = m_AssetRegistry.RegisterModel(std::move(*modelSource));
 
         try {
             Renderer::VulkanModelData modelData;

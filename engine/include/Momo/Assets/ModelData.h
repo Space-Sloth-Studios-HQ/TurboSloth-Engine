@@ -14,8 +14,16 @@ struct TextureData {
     // Wrapping mode (e.g., repeat, clamp to edge)
 };
 
+enum class AlphaMode {
+    Opaque,
+    Mask,
+    Blend
+};
+
 struct Material {
     glm::vec4 baseColorFactor = glm::vec4(0.0f);
+    float alphaCutoff = 0.5f; // Cutoff value for alpha masking
+    AlphaMode alphaMode = AlphaMode::Opaque; // Alpha mode for the material
     TextureHandle baseColorTextureHandle; // Handle to the base color texture for the material
 };
 

@@ -148,6 +148,20 @@ private:
         return static_cast<uint32_t>(*texture.imageIndex);
     }
 
+    Assets::AlphaMode MapAlphaMode(const fastgltf::AlphaMode &alphaMode) {
+        switch (alphaMode) {
+            case fastgltf::AlphaMode::Opaque:
+                return Assets::AlphaMode::Opaque;
+            case fastgltf::AlphaMode::Mask:
+                return Assets::AlphaMode::Mask;
+            case fastgltf::AlphaMode::Blend:
+                return Assets::AlphaMode::Blend;
+            default:
+                LOG_WARN(TAG, "Unknown alpha mode: {}", static_cast<int>(alphaMode));
+                return Assets::AlphaMode::Opaque;
+        }
+    }
+
     fastgltf::Parser parser;
     const std::string TAG = "FastGltfModelLoader";
 
@@ -208,6 +222,8 @@ public:
                 material.pbrData.baseColorFactor[3]
             );
             matSources[i].baseColorTexture = FindBaseColorImageIndex(asset.get(), material);
+            matSources[i].alphaMode = MapAlphaMode(material.alphaMode);
+            matSources[i].alphaCutoff = material.alphaCutoff;
         }
 
         // Pass 3: geometry per primitive. Materials and images are already
