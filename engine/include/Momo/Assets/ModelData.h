@@ -22,6 +22,7 @@ enum class AlphaMode {
 
 struct Material {
     glm::vec4 baseColorFactor = glm::vec4(0.0f);
+    bool doubleSided = false; // Whether the material is double-sided
     float alphaCutoff = 0.5f; // Cutoff value for alpha masking
     AlphaMode alphaMode = AlphaMode::Opaque; // Alpha mode for the material
     TextureHandle baseColorTextureHandle; // Handle to the base color texture for the material

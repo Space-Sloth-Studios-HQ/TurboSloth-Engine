@@ -221,6 +221,7 @@ public:
                 material.pbrData.baseColorFactor[2],
                 material.pbrData.baseColorFactor[3]
             );
+            matSources[i].doubleSided = material.doubleSided;
             matSources[i].baseColorTexture = FindBaseColorImageIndex(asset.get(), material);
             matSources[i].alphaMode = MapAlphaMode(material.alphaMode);
             matSources[i].alphaCutoff = material.alphaCutoff;

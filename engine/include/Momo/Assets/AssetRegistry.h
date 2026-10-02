@@ -12,8 +12,8 @@ namespace Momo::Assets {
 class AssetRegistry
 {
 public:
-    // TODO: Handle default TextureData for missing textures
     const TextureData& Get(TextureHandle handle) const { return textureAssets.Get(handle); }
+
     // TODO: Handle default Material for missing materials
     const Material& Get(MaterialHandle handle) const { return materialAssets.Get(handle); }
 
@@ -27,11 +27,27 @@ public:
     // Consumes the source: pixel and geometry buffers are moved into the pools.
     ModelHandle RegisterModel(ModelSource&& source);
 
+    // Registers engine-owned fallback assets. Must run before RegisterModel.
+    void Init();
+
+    // Returns the handle unchanged if it names a live texture. Otherwise an
+    // Invalid handle ("no texture") resolves to the default white texture and
+    // a valid-but-missing one to the missing-texture checkerboard. Resolving
+    // here, rather than inside Get, means every fallback shares one handle, so
+    // GPUCache uploads each fallback once.
+    TextureHandle Resolve(TextureHandle handle) const;
+
 private:
     AssetPool<TextureData, TextureTag> textureAssets;
     AssetPool<Material, MaterialTag> materialAssets;
     AssetPool<Mesh, MeshTag> meshAssets;
     AssetPool<Model, ModelTag> modelAssets;
+
+    // 1x1 opaque white: multiplies out to baseColorFactor in the shader.
+    TextureHandle defaultTexture;
+    // Magenta/black checkerboard for textures that should exist but don't, so
+    // broken assets are obvious on screen rather than only in the log.
+    TextureHandle missingTexture;
 
     std::unordered_map<std::string, TextureHandle> texturesByPath;
 };

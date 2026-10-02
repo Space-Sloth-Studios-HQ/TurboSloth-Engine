@@ -66,10 +66,12 @@ namespace Momo
         // std::optional<Renderer::VulkanModelData> m_Mesh; // TODO: Should be a full scene object as active scene
 
         MeshGPUCache m_MeshCache;
+        MaterialGPUCache m_MaterialCache;
         TextureGPUCache m_TextureCache;
 
         Renderer::VulkanModelData LoadMesh(const std::filesystem::path &path);
         void Draw(float dt);
         void LoadScene(const std::filesystem::path &path);
+        void LoadDefaultAssets();
     };
 }

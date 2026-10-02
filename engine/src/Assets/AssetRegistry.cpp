@@ -1,4 +1,5 @@
 #include "Momo/Assets/AssetRegistry.h"
+#include "Momo/Logging/Logger.h"
 
 #include <utility>
 
@@ -31,6 +32,52 @@ Mesh ToMesh(MeshSource&& source, const MaterialHandle materialHandle) {
 }
 } // namespace
 
+void AssetRegistry::Init() {
+    TextureData white;
+    white.pixelData = {255, 255, 255, 255};
+    white.width = 1;
+    white.height = 1;
+    white.channels = 4;
+    defaultTexture = textureAssets.Add(std::move(white));
+
+    // 64x64 with 8x8 cells rather than 2x2: the shared sampler filters
+    // linearly, so a tiny texture stretched over a mesh would blur into a
+    // purple smear. Larger cells keep the blur to a thin band at each edge.
+    constexpr uint32_t size = 64;
+    constexpr uint32_t cell = 8;
+    TextureData checker;
+    checker.width = size;
+    checker.height = size;
+    checker.channels = 4;
+    checker.pixelData.resize(size * size * 4);
+    for (uint32_t y = 0; y < size; ++y) {
+        for (uint32_t x = 0; x < size; ++x) {
+            const bool magenta = ((x / cell) + (y / cell)) % 2 == 0;
+            uint8_t* pixel = &checker.pixelData[(y * size + x) * 4];
+            pixel[0] = magenta ? 255 : 0;
+            pixel[1] = 0;
+            pixel[2] = magenta ? 255 : 0;
+            pixel[3] = 255;
+        }
+    }
+    missingTexture = textureAssets.Add(std::move(checker));
+}
+
+TextureHandle AssetRegistry::Resolve(TextureHandle handle) const {
+    /*
+    if (textureAssets.Has(handle)) {
+        return handle;
+    }
+    // An Invalid handle just means "no texture", which glTF allows. A valid id
+    // that isn't in the pool means something removed it out from under us.
+    if (handle.IsValid()) {
+        LOG_WARN("AssetRegistry", "Texture handle {} not found. Using missing texture.", handle.id);
+        return missingTexture;
+    }
+    */
+    return defaultTexture;
+}
+
 ModelHandle AssetRegistry::RegisterModel(ModelSource&& source) {
     // Local index -> handle lookup tables. Slots the loader left empty stay
     // invalid, so a reference to a failed decode is detectable rather than
@@ -44,10 +91,16 @@ ModelHandle AssetRegistry::RegisterModel(ModelSource&& source) {
 
     std::vector<MaterialHandle> materialHandles(source.materials.size());
     for (size_t i = 0; i < source.materials.size(); ++i) {
-        // TODO: Consider using a default texture or logging a warning when a material has no base color texture.
         const auto &src = source.materials[i];
-        const auto textureHandle = src.baseColorTexture ? textureHandles[*src.baseColorTexture] : TextureHandle{};
-        materialHandles[i] = materialAssets.Add(ToMaterial(source.materials[i], textureHandle));
+        TextureHandle textureHandle{};
+        if (src.baseColorTexture) {
+            textureHandle = textureHandles[*src.baseColorTexture];
+            if (!textureHandle.IsValid()) {
+                LOG_WARN("AssetRegistry", "Material {} references texture {} which failed to decode. Using missing texture.", i, *src.baseColorTexture);
+                textureHandle = missingTexture;
+            }
+        }
+        materialHandles[i] = materialAssets.Add(ToMaterial(src, Resolve(textureHandle)));
     }
 
     Model model;

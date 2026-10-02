@@ -11,13 +11,14 @@ namespace Momo
     Application::Application(const ApplicationSpecification& spec)
         : m_Spec(spec),
           m_MeshCache(m_AssetRegistry, m_Renderer),
+          m_MaterialCache(m_AssetRegistry, m_Renderer),
           m_TextureCache(m_AssetRegistry, m_Renderer)
     {
         LOG_INFO("Momo", "Starting '{}' ({}x{})", m_Spec.Name, m_Spec.WindowSpec.Width, m_Spec.WindowSpec.Height);
         m_Window = std::unique_ptr<IWindow>(IWindow::Create(m_Spec.WindowSpec));
         m_Renderer.Init(*m_Window);
         m_ModelLoader = std::unique_ptr<Assets::IModelLoader>(Assets::IModelLoader::CreateGltfModelLoader());
-
+        m_AssetRegistry.Init();
         LoadScene(""); // TODO: Replace with actual scene path
     }
 
@@ -162,6 +163,7 @@ namespace Momo
                 const Assets::Material& material = m_AssetRegistry.Get(mesh.materialHandle);
 
                 m_MeshCache.GetOrCreate(meshHandle);
+                m_MaterialCache.GetOrCreate(mesh.materialHandle);
                 m_TextureCache.GetOrCreate(material.baseColorTextureHandle);
             }
             return modelData;

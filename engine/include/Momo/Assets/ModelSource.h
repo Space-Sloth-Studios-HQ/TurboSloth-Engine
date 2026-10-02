@@ -24,6 +24,7 @@ struct TextureSource {
 struct MaterialSource {
     glm::vec4 baseColorFactor = glm::vec4(1.0f);
     // Index into ModelSource::textures, which mirrors the glTF image list.
+    bool doubleSided = false;
     std::optional<uint32_t> baseColorTexture;
     AlphaMode alphaMode = AlphaMode::Opaque;
     float alphaCutoff = 0.5f;

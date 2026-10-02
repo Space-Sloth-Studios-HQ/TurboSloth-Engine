@@ -25,6 +25,17 @@ template <> struct GPUResourceTraits<Assets::MeshTag> {
     }
 };
 
+template <typename Tag> struct GPUResourceTraits;
+template <> struct GPUResourceTraits<Assets::MaterialTag> {
+    using GPUType = Renderer::VulkanMaterialData;
+    static GPUType Create(const Assets::Material& material, Renderer::VulkanRenderer& renderer) {
+        return Renderer::VulkanMaterialData {
+                    .doubleSided = material.doubleSided, // TODO: Support double-sided materials
+                    .baseColorTextureHandle = material.baseColorTextureHandle
+                };
+    }
+};
+
 template <typename Tag>
 class GPUCache
 {
@@ -50,6 +61,7 @@ private:
 };
 
 using TextureGPUCache = GPUCache<Assets::TextureTag>;
+using MaterialGPUCache = GPUCache<Assets::MaterialTag>;
 using MeshGPUCache = GPUCache<Assets::MeshTag>;
 
 } // namespace Momo

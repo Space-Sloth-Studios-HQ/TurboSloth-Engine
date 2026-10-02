@@ -38,6 +38,12 @@ struct VulkanTextureData
     Assets::TextureHandle textureHandle;
 };
 
+struct VulkanMaterialData
+{
+    bool doubleSided;
+    Assets::TextureHandle baseColorTextureHandle;
+};
+
 struct GPUMesh
 {
     AllocatedBuffer vertexBuffer;
